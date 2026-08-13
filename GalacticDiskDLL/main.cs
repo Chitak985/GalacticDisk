@@ -1,22 +1,4 @@
-﻿/*
-    A KSP DLL mod that adds galactic disks using configs.
-    Copyright (C) 2026  Chitak985
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
-
-using KSP.UI.Screens;
+﻿using KSP.UI.Screens;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -26,12 +8,10 @@ using UnityEngine;
 namespace GalacticDisk
 {
     /// <summary>
-    /// Reads GalacticDiskDefinition config nodes from GameDatabase (so they can be
-    /// MM-patched) and, for each one, locates the corresponding ScaledSpace object
-    /// created by ScaledDecorator — a child named "[prefab](Clone)" parented under
-    /// FlightGlobals.GetBodyByName([planet]).scaledBody.transform — and populates
-    /// its ParticleSystem with a procedurally generated galactic disk, but only if
-    /// that particle system doesn't already have particles.
+    /// Generates every single loaded GalacticDisk from configs in GameDatabase.
+    /// This happens in the Space Center as it is the first scene where a disk
+    /// can be seen, and it is the first scene where all configs have been loaded
+    /// and patched by ModuleManager.
     /// </summary>
     [KSPAddon(KSPAddon.Startup.SpaceCentre, false)]
     public class GalacticDiskGenerator : MonoBehaviour
@@ -60,7 +40,7 @@ namespace GalacticDisk
         {
             if (instance != null)
             {
-                UnityEngine.Debug.Log($"[GalacticDisk] Duplicate instance {GetInstanceID()} in scene {HighLogic.LoadedScene}, destroying it; keeping original {instance.GetInstanceID()}");
+                Debug.Log($"[GalacticDisk] Duplicate instance {GetInstanceID()} in scene {HighLogic.LoadedScene}, destroying it; keeping original {instance.GetInstanceID()}");
                 Destroy(gameObject);
                 return;
             }
@@ -68,7 +48,7 @@ namespace GalacticDisk
             instance = this;
             DontDestroyOnLoad(gameObject);
 
-            UnityEngine.Debug.Log($"[GalacticDisk] Start() running in scene {HighLogic.LoadedScene}, instance id {GetInstanceID()}");
+            Debug.Log($"[GalacticDisk] Start() running in scene {HighLogic.LoadedScene}, instance id {GetInstanceID()}");
 
             foreach (ConfigNode node in GameDatabase.Instance.GetConfigNodes("GalacticDiskDefinition"))
             {
@@ -76,7 +56,7 @@ namespace GalacticDisk
 
                 if (string.IsNullOrEmpty(config.planet))
                 {
-                    UnityEngine.Debug.LogWarning($"[GalacticDisk] GalacticDiskDefinition node missing planet, skipping.");
+                    Debug.LogWarning($"[GalacticDisk] GalacticDiskDefinition node missing planet, skipping.");
                     continue;
                 }
 
@@ -84,7 +64,7 @@ namespace GalacticDisk
 
                 if (cBody?.scaledBody == null)
                 {
-                    UnityEngine.Debug.LogWarning("[GalacticDisk] Planet '" + config.planet + "' has no scaled body yet, not initializing disk.");
+                    Debug.LogWarning("[GalacticDisk] Planet '" + config.planet + "' has no scaled body yet, not initializing disk.");
                     continue;
                 }
 
@@ -103,7 +83,7 @@ namespace GalacticDisk
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError($"[GalacticDisk] Failed to process object \"{go.name}\": {ex}");
+                    Debug.LogError($"[GalacticDisk] Failed to process object \"{go.name}\": {ex}");
                 }
 
                 disksByPlanet[config.planet] = go; // Remember for UI updates
@@ -117,7 +97,7 @@ namespace GalacticDisk
 
         public void OnDestroy()
         {
-            UnityEngine.Debug.Log($"[GalacticDisk] OnDestroy() called on instance id {GetInstanceID()}, scene {HighLogic.LoadedScene}");
+            Debug.Log($"[GalacticDisk] OnDestroy() called on instance id {GetInstanceID()}, scene {HighLogic.LoadedScene}");
 
             if (instance == this)
                 instance = null;
@@ -129,7 +109,7 @@ namespace GalacticDisk
 
         void AddLauncherButton()
         {
-            UnityEngine.Debug.Log($"[GalacticDisk] AddLauncherButton() fired in scene {HighLogic.LoadedScene}, launcherButton already set = {launcherButton != null}, window visible = {toolbar?.IsVisible}");
+            Debug.Log($"[GalacticDisk] AddLauncherButton() fired in scene {HighLogic.LoadedScene}, launcherButton already set = {launcherButton != null}, window visible = {toolbar?.IsVisible}");
 
             if (launcherButton != null) return;
 
@@ -156,12 +136,12 @@ namespace GalacticDisk
             else
                 launcherButton.SetFalse(false);
 
-            UnityEngine.Debug.Log("[GalacticDisk] Launcher button created.");
+            Debug.Log("[GalacticDisk] Launcher button created.");
         }
 
         void RemoveLauncherButton()
         {
-            UnityEngine.Debug.Log($"[GalacticDisk] RemoveLauncherButton() fired in scene {HighLogic.LoadedScene}, had button = {launcherButton != null}");
+            Debug.Log($"[GalacticDisk] RemoveLauncherButton() fired in scene {HighLogic.LoadedScene}, had button = {launcherButton != null}");
 
             if (launcherButton == null) return;
 
@@ -175,7 +155,7 @@ namespace GalacticDisk
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogWarning($"[GalacticDisk] Failed to cleanly remove launcher button: {ex}");
+                Debug.LogWarning($"[GalacticDisk] Failed to cleanly remove launcher button: {ex}");
             }
             finally
             {
@@ -193,7 +173,7 @@ namespace GalacticDisk
             ParticleSystem ps = go.GetComponent<ParticleSystem>();
             if (ps == null)  // This literally cannot happen now so maybe I should remove this (ps is added just before the function is even called)
             {
-                UnityEngine.Debug.LogWarning($"[GalacticDisk] Object \"{go.name}\" has no ParticleSystem, skipping.");
+                Debug.LogWarning($"[GalacticDisk] Object \"{go.name}\" has no ParticleSystem, skipping.");
                 return;
             }
 
@@ -201,7 +181,7 @@ namespace GalacticDisk
             if (ps.particleCount > 0 && !emission.enabled)
             {
                 // Already generated — nothing to do. Kept as a safety net to prevent more particle generation
-                UnityEngine.Debug.Log($"[GalacticDisk] Object \"{go.name}\" already has particles generated, skipping.");
+                Debug.Log($"[GalacticDisk] Object \"{go.name}\" already has particles generated, skipping.");
                 return;
             }
 
@@ -230,7 +210,7 @@ namespace GalacticDisk
                 }
                 else
                 {
-                    UnityEngine.Debug.LogWarning($"[GalacticDisk] Texture for star particles not found at '{config.texturePath}'");
+                    Debug.LogWarning($"[GalacticDisk] Texture for star particles not found at '{config.texturePath}'");
                     material.mainTexture = CreateDefaultParticleTexture();
                 }
             }
@@ -252,7 +232,7 @@ namespace GalacticDisk
             // Generate particles
             GenerateGalaxy(ps, config, material);
 
-            UnityEngine.Debug.Log($"[GalacticDisk] Generated {ps.particleCount} stars at \"{go.name}\".");
+            Debug.Log($"[GalacticDisk] Generated {ps.particleCount} stars at \"{go.name}\".");
         }
 
         internal static void RegenerateDisk(GameObject go, GalaxyConfig config)
@@ -282,7 +262,7 @@ namespace GalacticDisk
                 }
                 else
                 {
-                    UnityEngine.Debug.LogWarning($"[GalacticDisk] Texture for star particles not found at '{config.texturePath}'");
+                    Debug.LogWarning($"[GalacticDisk] Texture for star particles not found at '{config.texturePath}'");
                     material.mainTexture = CreateDefaultParticleTexture();
                 }
             }
@@ -298,7 +278,7 @@ namespace GalacticDisk
 
             GenerateGalaxy(ps, config, material);
 
-            UnityEngine.Debug.Log($"[GalacticDisk] Regenerated {ps.particleCount} stars at \"{go.name}\".");
+            Debug.Log($"[GalacticDisk] Regenerated {ps.particleCount} stars at \"{go.name}\".");
         }
 
         // Reads back the config currently applied to a body's disk, if any — used
@@ -341,20 +321,19 @@ namespace GalacticDisk
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[GalacticDisk] Failed to process object \"{go.name}\": {ex}");
+                Debug.LogError($"[GalacticDisk] Failed to process object \"{go.name}\": {ex}");
             }
 
             disksByPlanet[body.name] = go;
         }
 
-        // so a fresh preview or a new disk can be generated without overlapping it.
         internal static void RemoveDisk(string planetName)
         {
             if (string.IsNullOrEmpty(planetName)) return;
 
             if (disksByPlanet.TryGetValue(planetName, out GameObject go))
             {
-                if (go != null) UnityEngine.Object.Destroy(go);
+                if (go != null) Destroy(go);
                 disksByPlanet.Remove(planetName);
             }
         }
@@ -532,19 +511,6 @@ namespace GalacticDisk
             tex.Apply();
             return tex;
         }
-
-        static void ClearDisk(GameObject go)
-        {
-            ParticleSystem ps = go.GetComponent<ParticleSystem>();
-            if (ps == null) return;
-
-            // Remove all particles.
-            ParticleSystem.MainModule main = ps.main;
-            main.maxParticles = 0;
-            ps.SetParticles(null, 0);
-            ParticleSystem.EmissionModule emission = ps.emission;
-            emission.enabled = false;
-        }
     }
 
     public class GalaxyConfig
@@ -656,7 +622,7 @@ namespace GalacticDisk
                 c.bulgeScaleX = legacyRadius;
                 c.bulgeScaleY = legacyRadius;
                 c.bulgeScaleZ = legacyRadius;
-                UnityEngine.Debug.LogWarning("[GalacticDisk] Config field 'bulgeRadius' is obsolete — use bulgeScaleX/bulgeScaleY/bulgeScaleZ instead. Setting all three to the given value for now.");
+                Debug.LogWarning("[GalacticDisk] Config field 'bulgeRadius' is obsolete — use bulgeScaleX/bulgeScaleY/bulgeScaleZ instead. Setting all three to the given value for now.");
             }
             c.bulgeScaleX = GetFloat(node, "bulgeScaleX", c.bulgeScaleX);
             c.bulgeScaleY = GetFloat(node, "bulgeScaleY", c.bulgeScaleY);
@@ -667,12 +633,12 @@ namespace GalacticDisk
                 Color legacyColor1 = GetColor(node, "color1", c.colorBulge);
                 c.colorBulge = legacyColor1;
                 c.colorArms = legacyColor1;
-                UnityEngine.Debug.LogWarning("[GalacticDisk] Config field 'color1' is obsolete — use colorBulge/colorArms instead. Using it as the default for both for now.");
+                Debug.LogWarning("[GalacticDisk] Config field 'color1' is obsolete — use colorBulge/colorArms instead. Using it as the default for both for now.");
             }
             if (node.HasValue("color2"))
             {
                 c.colorInterarm = GetColor(node, "color2", c.colorInterarm);
-                UnityEngine.Debug.LogWarning("[GalacticDisk] Config field 'color2' is obsolete — use colorInterarm instead. Using it as the default for now.");
+                Debug.LogWarning("[GalacticDisk] Config field 'color2' is obsolete — use colorInterarm instead. Using it as the default for now.");
             }
             c.colorBulge = GetColor(node, "colorBulge", c.colorBulge);
             c.colorArms = GetColor(node, "colorArms", c.colorArms);
@@ -698,7 +664,7 @@ namespace GalacticDisk
                 if (c.usesTexture)
                 {
                     c.usesTexture = false;
-                    UnityEngine.Debug.LogWarning("[GalacticDisk] No texturePath but uses a custom texture, using default texture instead.");
+                    Debug.LogWarning("[GalacticDisk] No texturePath but uses a custom texture, using default texture instead.");
                 }
             }
 
@@ -732,7 +698,7 @@ namespace GalacticDisk
         {
             if (!node.HasValue(key))
             {
-                UnityEngine.Debug.LogWarning("[GalacticDisk] Key " + key + " in node " + node.name + " does not exist, using fallback.");
+                Debug.LogWarning("[GalacticDisk] Key " + key + " in node " + node.name + " does not exist, using fallback.");
                 return fallback;
             }
 
@@ -885,7 +851,7 @@ namespace GalacticDisk
             transform.localScale = Vector3.one * (config.objectScale * config.renderScale);
 
             ps.SetParticles(particles);
-            UnityEngine.Debug.Log($"[GalacticDisk] Re-generated {ps.particleCount} stars at \"{ps.gameObject.name}\".");
+            Debug.Log($"[GalacticDisk] Re-generated {ps.particleCount} stars at \"{ps.gameObject.name}\".");
         }
     }
 
