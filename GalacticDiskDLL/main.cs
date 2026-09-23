@@ -542,14 +542,14 @@ namespace GalacticDisk
         // Separate colors for each population, replacing the old color1 (inner)/
         // color2 (outer) radial blend. Defaults mirror the old defaults: bulge and
         // arms took after color1 (warm), interarm took after color2 (cool/blue).
-        public Color colorBulge = new Color(1.0f, 0.92f, 0.65f);
-        public Color colorArms = new Color(1.0f, 0.92f, 0.65f);
-        public Color colorInterarm = new Color(0.45f, 0.65f, 1.0f);
+        public Color colorBulge = new Color(1.0f, 0.92f, 0.65f, 1.0f);
+        public Color colorArms = new Color(1.0f, 0.92f, 0.65f, 1.0f);
+        public Color colorInterarm = new Color(0.45f, 0.65f, 1.0f, 1.0f);
 
         // Optional highlight color sprinkled onto arm stars only (not bulge, not
         // interarm) to simulate HII regions/star clusters. Chance defaults to 0
         // so existing configs render identically unless they opt in.
-        public Color armHighlightColor = new Color(1.0f, 0.55f, 0.6f);
+        public Color armHighlightColor = new Color(1.0f, 0.55f, 0.6f, 1.0f);
         public float armHighlightChance = 0f;
 
         // Fixed WORLD rotation (Euler degrees) the disk is held at every frame,
@@ -890,11 +890,11 @@ namespace GalacticDisk
         private string bulgeFraction = "0.15";
         private string bulgeScaleX = "15", bulgeScaleY = "2.25", bulgeScaleZ = "15";
 
-        private string colorBulgeR = "1.0", colorBulgeG = "0.92", colorBulgeB = "0.65";
-        private string colorArmsR = "1.0", colorArmsG = "0.92", colorArmsB = "0.65";
-        private string colorInterarmR = "0.45", colorInterarmG = "0.65", colorInterarmB = "1.0";
+        private string colorBulgeR = "1.0", colorBulgeG = "0.92", colorBulgeB = "0.65", colorBulgeA = "1.0";
+        private string colorArmsR = "1.0", colorArmsG = "0.92", colorArmsB = "0.65", colorArmsA = "1.0";
+        private string colorInterarmR = "0.45", colorInterarmG = "0.65", colorInterarmB = "1.0", colorInterarmA = "1.0";
 
-        private string armHighlightColorR = "1.0", armHighlightColorG = "0.55", armHighlightColorB = "0.6";
+        private string armHighlightColorR = "1.0", armHighlightColorG = "0.55", armHighlightColorB = "0.6", armHighlightColorA = "1.0";
         private string armHighlightChance = "0";
 
         private string rotationX = "0", rotationY = "0", rotationZ = "0";
@@ -1021,21 +1021,25 @@ namespace GalacticDisk
                 colorBulgeR = LabeledField("Bulge color R", colorBulgeR);
                 colorBulgeG = LabeledField("Bulge color G", colorBulgeG);
                 colorBulgeB = LabeledField("Bulge color B", colorBulgeB);
+                colorBulgeA = LabeledField("Bulge opacity A", colorBulgeA);
 
                 GUILayout.Space(6f);
                 colorArmsR = LabeledField("Arms color R", colorArmsR);
                 colorArmsG = LabeledField("Arms color G", colorArmsG);
                 colorArmsB = LabeledField("Arms color B", colorArmsB);
+                colorArmsA = LabeledField("Arms opacity A", colorArmsA);
 
                 GUILayout.Space(6f);
                 colorInterarmR = LabeledField("Interarm color R", colorInterarmR);
                 colorInterarmG = LabeledField("Interarm color G", colorInterarmG);
                 colorInterarmB = LabeledField("Interarm color B", colorInterarmB);
+                colorInterarmA = LabeledField("Interarm opacity A", colorInterarmA);
 
                 GUILayout.Space(6f);
                 armHighlightColorR = LabeledField("Highlight color R", armHighlightColorR);
                 armHighlightColorG = LabeledField("Highlight color G", armHighlightColorG);
                 armHighlightColorB = LabeledField("Highlight color B", armHighlightColorB);
+                armHighlightColorA = LabeledField("Highlight opacity A", armHighlightColorA);
                 armHighlightChance = LabeledField("Highlight chance", armHighlightChance);
             }
 
@@ -1163,22 +1167,26 @@ namespace GalacticDisk
             float.TryParse(colorBulgeR, NumberStyles.Float, CultureInfo.InvariantCulture, out float cbr);
             float.TryParse(colorBulgeG, NumberStyles.Float, CultureInfo.InvariantCulture, out float cbg);
             float.TryParse(colorBulgeB, NumberStyles.Float, CultureInfo.InvariantCulture, out float cbb);
-            cfg.colorBulge = new Color(cbr, cbg, cbb);
+            float.TryParse(colorBulgeA, NumberStyles.Float, CultureInfo.InvariantCulture, out float cba);
+            cfg.colorBulge = new Color(cbr, cbg, cbb, cba);
 
             float.TryParse(colorArmsR, NumberStyles.Float, CultureInfo.InvariantCulture, out float car);
             float.TryParse(colorArmsG, NumberStyles.Float, CultureInfo.InvariantCulture, out float cag);
             float.TryParse(colorArmsB, NumberStyles.Float, CultureInfo.InvariantCulture, out float cab);
-            cfg.colorArms = new Color(car, cag, cab);
+            float.TryParse(colorArmsA, NumberStyles.Float, CultureInfo.InvariantCulture, out float caa);
+            cfg.colorArms = new Color(car, cag, cab, caa);
 
             float.TryParse(colorInterarmR, NumberStyles.Float, CultureInfo.InvariantCulture, out float cir);
             float.TryParse(colorInterarmG, NumberStyles.Float, CultureInfo.InvariantCulture, out float cig);
             float.TryParse(colorInterarmB, NumberStyles.Float, CultureInfo.InvariantCulture, out float cib);
-            cfg.colorInterarm = new Color(cir, cig, cib);
+            float.TryParse(colorInterarmA, NumberStyles.Float, CultureInfo.InvariantCulture, out float cia);
+            cfg.colorInterarm = new Color(cir, cig, cib, cia);
 
             float.TryParse(armHighlightColorR, NumberStyles.Float, CultureInfo.InvariantCulture, out float ahr);
             float.TryParse(armHighlightColorG, NumberStyles.Float, CultureInfo.InvariantCulture, out float ahg);
             float.TryParse(armHighlightColorB, NumberStyles.Float, CultureInfo.InvariantCulture, out float ahb);
-            cfg.armHighlightColor = new Color(ahr, ahg, ahb);
+            float.TryParse(armHighlightColorA, NumberStyles.Float, CultureInfo.InvariantCulture, out float aha);
+            cfg.armHighlightColor = new Color(ahr, ahg, ahb, aha);
             float.TryParse(armHighlightChance, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.armHighlightChance);
 
             float.TryParse(rotationX, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.rotationX);
@@ -1223,10 +1231,10 @@ namespace GalacticDisk
                 $"    bulgeScaleX = {cfg.bulgeScaleX.ToString(ci)}\n" +
                 $"    bulgeScaleY = {cfg.bulgeScaleY.ToString(ci)}\n" +
                 $"    bulgeScaleZ = {cfg.bulgeScaleZ.ToString(ci)}\n" +
-                $"    colorBulge = {cfg.colorBulge.r.ToString(ci)}, {cfg.colorBulge.g.ToString(ci)}, {cfg.colorBulge.b.ToString(ci)}\n" +
-                $"    colorArms = {cfg.colorArms.r.ToString(ci)}, {cfg.colorArms.g.ToString(ci)}, {cfg.colorArms.b.ToString(ci)}\n" +
-                $"    colorInterarm = {cfg.colorInterarm.r.ToString(ci)}, {cfg.colorInterarm.g.ToString(ci)}, {cfg.colorInterarm.b.ToString(ci)}\n" +
-                $"    armHighlightColor = {cfg.armHighlightColor.r.ToString(ci)}, {cfg.armHighlightColor.g.ToString(ci)}, {cfg.armHighlightColor.b.ToString(ci)}\n" +
+                $"    colorBulge = {cfg.colorBulge.r.ToString(ci)}, {cfg.colorBulge.g.ToString(ci)}, {cfg.colorBulge.b.ToString(ci)}, {cfg.colorBulge.a.ToString(ci)}\n" +
+                $"    colorArms = {cfg.colorArms.r.ToString(ci)}, {cfg.colorArms.g.ToString(ci)}, {cfg.colorArms.b.ToString(ci)}, {cfg.colorArms.a.ToString(ci)}\n" +
+                $"    colorInterarm = {cfg.colorInterarm.r.ToString(ci)}, {cfg.colorInterarm.g.ToString(ci)}, {cfg.colorInterarm.b.ToString(ci)}, {cfg.colorInterarm.a.ToString(ci)}\n" +
+                $"    armHighlightColor = {cfg.armHighlightColor.r.ToString(ci)}, {cfg.armHighlightColor.g.ToString(ci)}, {cfg.armHighlightColor.b.ToString(ci)}, {cfg.armHighlightColor.a.ToString(ci)}\n" +
                 $"    armHighlightChance = {cfg.armHighlightChance.ToString(ci)}\n" +
                 $"    rotationX = {cfg.rotationX.ToString(ci)}\n" +
                 $"    rotationY = {cfg.rotationY.ToString(ci)}\n" +
@@ -1266,18 +1274,22 @@ namespace GalacticDisk
             colorBulgeR = cfg.colorBulge.r.ToString(ci);
             colorBulgeG = cfg.colorBulge.g.ToString(ci);
             colorBulgeB = cfg.colorBulge.b.ToString(ci);
+            colorBulgeA = cfg.colorBulge.a.ToString(ci);
 
             colorArmsR = cfg.colorArms.r.ToString(ci);
             colorArmsG = cfg.colorArms.g.ToString(ci);
             colorArmsB = cfg.colorArms.b.ToString(ci);
+            colorArmsA = cfg.colorArms.a.ToString(ci);
 
             colorInterarmR = cfg.colorInterarm.r.ToString(ci);
             colorInterarmG = cfg.colorInterarm.g.ToString(ci);
             colorInterarmB = cfg.colorInterarm.b.ToString(ci);
+            colorInterarmA = cfg.colorInterarm.a.ToString(ci);
 
             armHighlightColorR = cfg.armHighlightColor.r.ToString(ci);
             armHighlightColorG = cfg.armHighlightColor.g.ToString(ci);
             armHighlightColorB = cfg.armHighlightColor.b.ToString(ci);
+            armHighlightColorA = cfg.armHighlightColor.a.ToString(ci);
             armHighlightChance = cfg.armHighlightChance.ToString(ci);
 
             rotationX = cfg.rotationX.ToString(ci);

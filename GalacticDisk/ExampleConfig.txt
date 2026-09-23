@@ -20,10 +20,10 @@ GalacticDiskDefinition                    // The config node for spawning a disk
     bulgeScaleX = 8                       // X size of the bulge
     bulgeScaleY = 8                       // Y size of the bulge
     bulgeScaleZ = 8                       // Z size of the bulge
-    colorBulge = 1.0, 0.92, 0.65          // Color of the bulge
-    colorArms = 1.0, 0.92, 0.65           // Color of the arms
-    colorInterarm = 0.45, 0.65, 1.0       // Color of the stars between the galactic arms
-    armHighlightColor = 0.95, 0.55, 0.55  // The color for randomly highlighting some stars in an arm
+    colorBulge = 1.0, 0.92, 0.65, 1.0          // RGBA color of the bulge. Alpha is optional and defaults to 1
+    colorArms = 1.0, 0.92, 0.65, 1.0           // RGBA color of the arms. Alpha is optional and defaults to 1
+    colorInterarm = 0.45, 0.65, 1.0, 1.0       // RGBA color of stars between the arms. Alpha is optional and defaults to 1
+    armHighlightColor = 0.95, 0.55, 0.55, 1.0  // RGBA highlight color for arm stars. Alpha is optional and defaults to 1
     armHighlightChance = 0.06             // Each star that is part of an arm has this chance (6% in this case) to be highlighted with a different color
     objectScale = 1e5                     // The size of the disk in-game. This defaults to 1 but that is very low and the disk would likely end up inside the body
     renderScale = 1e5                     // The render scale. This also defaults to 1 and if your disk is small enough you can omit this,
