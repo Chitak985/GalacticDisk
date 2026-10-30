@@ -1,0 +1,42 @@
+// Rename to .cfg to enable. Both Particles and Volumetric render modes are supported.
+GalacticDiskRingDefinition
+{
+    planet = Eeloo
+    renderMode = Volumetric
+    innerRingRadius = 50
+    ringRadius = 100
+    ringThickness = 5.5
+    objectScale = 1e5
+    renderScale = 1e5
+    particleCount = 140000
+    minParticleSize = 0.055
+    maxParticleSize = 0.19
+    particleBrightness = 1.2
+    seed = 985123
+    diskScaleLengthFraction = 0.32
+    color = 0.62, 0.76, 1, 0.8
+
+    enableDustClouds = true
+    dustCloudCount = 450
+    minDustCloudSize = 1.5
+    maxDustCloudSize = 8
+    dustCloudThickness = 0.4
+    dustCloudClumpiness = 0.85
+    dustOpacity = 58
+    dustColor = 0.23, 0.10, 0.045, 0.95
+    dustScattering = 0.08
+
+    enableVolume = true
+    volumeIntensity = 16
+    volumeExposure = 1.15
+    volumeSteps = 192
+    cloudResolution = 192
+    noiseFrequency = 24
+    starDustSamples = 12
+
+    rotationX = 0
+    rotationY = 0
+    rotationZ = 0
+    alignRotationToOrbit = false
+    rotationPeriod = 0
+}

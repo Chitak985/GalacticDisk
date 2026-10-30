@@ -399,3 +399,14 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Unity shader project caches (the built bundles in GalacticDisk/Assets are shipped).
+UnityAssets/Library/
+UnityAssets/Temp/
+UnityAssets/Logs/
+UnityAssets/UserSettings/
+UnityAssets/ProjectSettings/*
+!UnityAssets/ProjectSettings/ProjectVersion.txt
+!UnityAssets/Packages/manifest.json
+GalacticDisk/Assets/*.manifest
+GalacticDisk/Assets/Assets

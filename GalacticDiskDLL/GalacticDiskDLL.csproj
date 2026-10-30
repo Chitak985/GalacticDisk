@@ -48,6 +48,12 @@
     <Reference Include="UnityEngine">
       <HintPath>..\..\..\..\..\..\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>..\..\..\..\..\..\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>..\..\..\..\..\..\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.AnimationModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
@@ -78,10 +84,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Main.cs" />
+    <Compile Include="Rendering\GalaxySettings.cs" />
+    <Compile Include="Rendering\GalaxyCloudField.cs" />
+    <Compile Include="Rendering\GalaxyStarGenerator.cs" />
+    <Compile Include="Rendering\VolumeConfig.cs" />
+    <Compile Include="Rendering\RingConfig.cs" />
+    <Compile Include="Rendering\GalaxyShaderAssets.cs" />
+    <Compile Include="Rendering\VolumetricDiskRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>move C:\Users\name\Documents\GitHub\GalacticDisk\GalacticDiskDLL\bin\Debug\GalacticDisk.dll C:\Users\name\Documents\GitHub\GalacticDisk\GalacticDisk\GalacticDisk.dll</PostBuildEvent>
-  </PropertyGroup>
+  <Target Name="CopyModAssembly" AfterTargets="Build" Condition="'$(SkipModCopy)' != 'true'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\..\GalacticDisk" />
+  </Target>
 </Project>

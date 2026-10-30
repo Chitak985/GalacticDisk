@@ -1,0 +1,98 @@
+// Rename to .cfg to enable. Avoid enabling both examples unless you want layered disks.
+// All lengths below are unscaled galaxy units; objectScale changes the final visible size.
+GalacticDiskDefinition
+{
+    planet = TheGreatAttractor //Eeloo
+    renderMode = Volumetric
+
+    // Overall size and resolved mesh stars
+    galaxyRadius = 100
+    diskThickness = 5.5
+    objectScale = 1.5e15
+    renderScale = 1e8
+
+    starCount = 140000
+    minStarSize = 0.055
+    maxStarSize = 0.19
+    starBrightness = 1.2
+    seed = 985123
+
+    // Four arms, with two stronger stellar arms
+    armCount = 4
+    logarithmicArms = true
+    armPitchAngle = 13.5
+    armStartRadius = 0.24
+    armTightness = 0.8
+    armWidth = 0.48
+    armConcentration = 0.3
+    armIrregularity = 0.065
+    secondaryArmStrength = 0.45
+    interarmFraction = 0.3
+    diskScaleLengthFraction = 0.32
+
+    // Warm central bulge and elongated bar
+    bulgeFraction = 0.16
+    bulgeScaleX = 7.5
+    bulgeScaleY = 3.5
+    bulgeScaleZ = 7.5
+
+    enableBar = true
+    barFraction = 0.65
+    barLength = 54
+    barWidth = 9
+    barHeight = 4
+    barAngle = 25
+
+    // RGBA colors
+    colorBulge = 1, 0.76, 0.4, 1
+    colorArms = 0.62, 0.76, 1, 0.8
+    colorInterarm = 0.88, 0.82, 0.68, 0.65
+    armHighlightColor = 1, 0.38, 0.53, 0.85
+    armHighlightChance = 0.035
+
+    // Dark, clumpy dust clouds and spiral lanes
+    enableDustClouds = true
+    dustCloudCount = 450
+    minDustCloudSize = 1.5
+    maxDustCloudSize = 8
+    dustCloudThickness = 0.4
+    dustCloudClumpiness = 0.85
+    dustArmBias = 0.82
+    dustLaneStrength = 1.6
+    dustLaneWidth = 0.42
+    dustOpacity = 58
+    dustColor = 0.23, 0.10, 0.045, 0.95
+    dustScattering = 0.08
+
+    // Pink emission nebulae and blue young-star clusters
+    enableStarFormation = true
+    starFormingRegionCount = 180
+    minStarFormingRegionSize = 0.8
+    maxStarFormingRegionSize = 2.3
+    starFormationInnerRadius = 0.28
+    starFormationOuterRadius = 0.9
+    starFormationArmBias = 0.97
+    starFormingRegionClumpiness = 0.9
+
+    starFormingRegionColor = 1, 0.035, 0.14, 0.95
+    starFormingRegionIntensity = 1.8
+    youngStarColor = 0.2, 0.48, 1, 0.95
+    youngStarGlowIntensity = 1.5
+    youngStarFraction = 0.12
+
+    // Volume appearance and rendering quality
+    enableVolume = true
+    volumeIntensity = 16
+    volumeExposure = 1.15
+    volumeSteps = 192
+    cloudResolution = 192
+    noiseFrequency = 24
+    starDustSamples = 12
+
+    // Orientation; zero period keeps the galaxy stationary
+    rotationX = 0
+    rotationY = 0
+    rotationZ = 0
+    alignRotationToOrbit = false
+    rotationPeriod = 0
+}
