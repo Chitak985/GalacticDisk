@@ -579,6 +579,8 @@ namespace GalacticDisk
         // Planetarium.GetUniversalTime() rather than accumulating per-frame deltas,
         // so it's exact at any timewarp rate and never drifts.
         public float rotationPeriod = 0f;
+        // Optional spin about the tilted disk normal. Manual rotationY remains a world-Y heading.
+        public bool spinAroundDiskAxis = false;
 
         // Fraction of galaxyRadius used as the exponential falloff scale length
         // for star density (was hardcoded to 0.25 previously). Lower = fades out
@@ -659,6 +661,7 @@ namespace GalacticDisk
             c.rotationZ = GetFloat(node, "rotationZ", c.rotationZ);
             c.alignRotationToOrbit = GetBool(node, "alignRotationToOrbit", c.alignRotationToOrbit);
             c.rotationPeriod = GetFloat(node, "rotationPeriod", c.rotationPeriod);
+            c.spinAroundDiskAxis = GetBool(node, "spinAroundDiskAxis", c.spinAroundDiskAxis);
             c.diskScaleLengthFraction = GetFloat(node, "diskScaleLengthFraction", c.diskScaleLengthFraction);
 
             c.usesTexture = GetBool(node, "usesTexture", c.usesTexture);
@@ -848,11 +851,15 @@ namespace GalacticDisk
                 // apply rotationY (+ any rotationPeriod spin) as rotation around
                 // that normal (which arm points where — doesn't affect the plane).
                 Quaternion align = Quaternion.FromToRotation(Vector3.up, normal);
-                transform.rotation = align * Quaternion.Euler(0f, config.rotationY + spinDegrees, 0f);
+                transform.rotation = config.spinAroundDiskAxis ?
+                    Quaternion.AngleAxis(config.rotationY, Vector3.up) * align * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
+                    align * Quaternion.Euler(0f, config.rotationY + spinDegrees, 0f);
             }
             else
             {
-                transform.rotation = Quaternion.Euler(config.rotationX, config.rotationY + spinDegrees, config.rotationZ);
+                transform.rotation = config.spinAroundDiskAxis ?
+                    Quaternion.Euler(config.rotationX, config.rotationY, config.rotationZ) * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
+                    Quaternion.Euler(config.rotationX, config.rotationY + spinDegrees, config.rotationZ);
             }
             if (volume != null) volume.UpdateMatrices();
         }
@@ -888,14 +895,21 @@ namespace GalacticDisk
     public class GalacticDiskToolbar
     {
         private bool showWindow = false;
-        private Rect windowRect = new Rect(20, 20, 460, 560);
+        private Rect windowRect = new Rect(20, 20, 560, 560);
 
         // Index into FlightGlobals.Bodies of the currently selected preview/remove target.
         // Not sorted in any way — just whatever order the game currently has them loaded in.
         private int selectedBodyIndex = 0;
 
-        // The text shown by "Show config", and its scroll position.
+        // The editable draft is saved to text independently of applying the disk.
         private string configText = "";
+        private bool configInitialized;
+        private string lastConfigText, lastFieldFingerprint;
+        private ConfigEditorResult textValidation, fieldValidation;
+        private readonly List<string> editorErrors = new List<string>();
+        private readonly List<string> editorWarnings = new List<string>();
+        private Vector2 diagnosticsScroll;
+        private string operationMessage = "";
         private DiskRenderMode renderMode = DiskRenderMode.Particles;
         private bool isRing;
         private string innerRingRadius = "0";
@@ -933,11 +947,14 @@ namespace GalacticDisk
 
         private string rotationX = "0", rotationY = "0", rotationZ = "0";
         private bool alignRotationToOrbit = false;
+        private bool spinAroundDiskAxis = false;
         private string rotationPeriod = "0";
         private string diskScaleLengthFraction = "0.25";
 
         private string objectScale = "1";
         private string renderScale = "1";
+        private bool usesTexture;
+        private string texturePath = "";
 
         // Whether each section is expanded, so the window can be collapsed down
         // to fit smaller screens instead of always showing every field at once.
@@ -1004,27 +1021,27 @@ namespace GalacticDisk
                 return;
             }
 
+            EnsureConfigText();
             GUILayout.Label(isRing ? "Ring Config (edit values here)" : "Galaxy Config (edit values here)", GUILayout.Height(20f));
             isRing = GUILayout.Toolbar(isRing ? 1 : 0, new[] { "Galaxy", "Ring" }) == 1;
             renderMode = (DiskRenderMode)GUILayout.Toolbar((int)renderMode, new[] { "Particles", "Volumetric" });
             if (!isRing && renderMode == DiskRenderMode.Volumetric && GUILayout.Button("Load Milky Way preset into fields"))
             {
-                GalaxyConfig preset = BuildConfigFromFields();
-                VolumeConfig.ApplyMilkyWayPreset(preset);
-                PopulateFieldsFromConfig(preset);
+                RefreshEditorDiagnostics();
+                if (fieldValidation.IsValid)
+                {
+                    GalaxyConfig preset = fieldValidation.config;
+                    VolumeConfig.ApplyMilkyWayPreset(preset);
+                    PopulateFieldsFromConfig(preset);
+                }
+                else operationMessage = "Error: fix the field errors before loading a preset.";
             }
 
             GUILayout.Space(10f);
-            GUILayout.Label("Various useful information to know while using this tool:");
+            GUILayout.Label("Text edits update fields. Save to config copies fields into the text.");
+            GUILayout.Label("Apply rebuilds from the fields. Save the .cfg file manually.");
 
-            GUILayout.Space(5f);
-            GUILayout.Label("You will need to save this config manually, it does not autosave!");
-            GUILayout.Label("\"Load\" reads the selected body's current disk into the fields below.");
-            GUILayout.Label("\"Apply\" replaces that disk in place with the current field values");
-            GUILayout.Label("(or creates one if the body doesn't have one yet). Click a section");
-            GUILayout.Label("header below to expand/collapse it.");
-
-            fieldsScroll = GUILayout.BeginScrollView(fieldsScroll, GUILayout.Height(320f));
+            fieldsScroll = GUILayout.BeginScrollView(fieldsScroll, GUILayout.Height(Mathf.Clamp(Screen.height - 540f, 80f, 240f)));
 
             GUILayout.Space(10f);
             showBasic = Foldout("Basic", showBasic);
@@ -1099,11 +1116,8 @@ namespace GalacticDisk
                 }
             }
 
-            if (renderMode == DiskRenderMode.Volumetric || isRing)
-            {
-                showVolumeOptions = Foldout(isRing ? "Particles, fog and dust" : "Volume, dust, nebulae and bar", showVolumeOptions);
-                if (showVolumeOptions) DrawVolumeFields();
-            }
+            showVolumeOptions = Foldout(isRing ? "Particles, fog and dust" : "Volume, dust, nebulae and bar", showVolumeOptions);
+            if (showVolumeOptions) DrawVolumeFields();
 
             showRotation = Foldout("Rotation", showRotation);
             if (showRotation)
@@ -1122,6 +1136,7 @@ namespace GalacticDisk
 
                 GUILayout.Space(6f);
                 rotationPeriod = LabeledField("Rotation period (s)", rotationPeriod);
+                spinAroundDiskAxis = GUILayout.Toggle(spinAroundDiskAxis, " Spin around the disk's tilted axis");
                 GUILayout.Label("(Seconds per full spin, on top of Rotation Y. 0 = no spin. Supports");
                 GUILayout.Label("scientific notation, e.g. 6.3E+7 for a year.)");
             }
@@ -1131,6 +1146,11 @@ namespace GalacticDisk
             {
                 objectScale = LabeledField("Object scale", objectScale);
                 renderScale = LabeledField("Render scale", renderScale);
+            }
+            if (renderMode == DiskRenderMode.Particles)
+            {
+                usesTexture = GUILayout.Toggle(usesTexture, " Use custom particle texture");
+                if (usesTexture) texturePath = LabeledField("Texture path", texturePath);
             }
 
             GUILayout.EndScrollView();
@@ -1154,9 +1174,9 @@ namespace GalacticDisk
             GUILayout.Space(10f);
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Show config"))
+            if (GUILayout.Button("Save to config"))
             {
-                ShowConfig();
+                SaveToConfig();
             }
             if (GUILayout.Button("Load"))
             {
@@ -1173,13 +1193,13 @@ namespace GalacticDisk
                 RemoveDisks();
             }
 
-            if (!string.IsNullOrEmpty(configText))
-            {
-                GUILayout.Space(10f);
-                configScroll = GUILayout.BeginScrollView(configScroll, GUILayout.Height(160f));
-                GUILayout.TextArea(configText);
-                GUILayout.EndScrollView();
-            }
+            GUILayout.Space(10f);
+            RefreshEditorDiagnostics();
+            DrawEditorDiagnostics();
+            configScroll = GUILayout.BeginScrollView(configScroll, GUILayout.Height(160f));
+            string edited = GUILayout.TextArea(configText, GUILayout.MinHeight(150f));
+            if (edited != configText) EditConfigText(edited);
+            GUILayout.EndScrollView();
 
             GUILayout.EndVertical();
 
@@ -1190,8 +1210,7 @@ namespace GalacticDisk
         {
             foreach (var field in VolumeConfig.OptionFields)
             {
-                if (isRing && (!RingConfig.IsVolumeOption(field.Name) ||
-                    (renderMode == DiskRenderMode.Particles && field.Name != "seed" && field.Name != "starBrightness"))) continue;
+                if (isRing && !RingConfig.IsVolumeOption(field.Name)) continue;
                 var headers = field.GetCustomAttributes(typeof(HeaderAttribute), false);
                 if (headers.Length > 0) { GUILayout.Space(8f); GUILayout.Label(((HeaderAttribute)headers[0]).header); }
                 string value;
@@ -1229,81 +1248,138 @@ namespace GalacticDisk
             selectedBodyIndex = (selectedBodyIndex + direction + bodies.Count) % bodies.Count;
         }
 
-        private GalaxyConfig BuildConfigFromFields()
+        private Dictionary<string, string> CaptureFieldValues()
         {
-            GalaxyConfig cfg = new GalaxyConfig();
-            cfg.isRing = isRing;
-            if (isRing) float.TryParse(innerRingRadius, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.innerRingRadius);
-            cfg.renderMode = renderMode;
-            foreach (var field in VolumeConfig.OptionFields)
+            var values = new Dictionary<string, string>(StringComparer.Ordinal);
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            foreach (var entry in ConfigEditor.Schema(isRing))
             {
-                field.SetValue(cfg.volume, field.GetValue(volumeFields));
-                string input; object value;
-                if (volumeInputs.TryGetValue(field.Name, out input) && VolumeConfig.TryParse(field.FieldType, input, out value))
-                    field.SetValue(cfg.volume, value);
+                if (entry.Key == "color1" || entry.Key == "color2" || entry.Key == "bulgeRadius") continue;
+                if (entry.Key == "planet") { values[entry.Key] = GetSelectedBody()?.name ?? ""; continue; }
+                string shared = isRing ? RingConfig.SharedFieldName(entry.Key) : entry.Key;
+                if (entry.Key == "renderMode") shared = "renderMode";
+                if (shared != null && typeof(GalaxyConfig).GetField(shared) != null && entry.Value == typeof(Color))
+                {
+                    var components = new List<string>();
+                    foreach (string suffix in new[] { "R", "G", "B", "A" })
+                        components.Add((string)GetType().GetField(shared + suffix, flags).GetValue(this));
+                    values[entry.Key] = string.Join(", ", components.ToArray());
+                }
+                else
+                {
+                    var field = shared == null ? null : GetType().GetField(shared, flags);
+                    if (field != null) values[entry.Key] = VolumeConfig.Format(field.GetValue(this));
+                    else
+                    {
+                        string option = entry.Key == "particleBrightness" ? "starBrightness" : entry.Key;
+                        string raw;
+                        values[entry.Key] = volumeInputs.TryGetValue(option, out raw) ? raw :
+                            VolumeConfig.Format(typeof(GalaxySettings).GetField(option).GetValue(volumeFields));
+                    }
+                }
             }
-
-            int.TryParse(starCount, out cfg.starCount);
-            float.TryParse(galaxyRadius, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.galaxyRadius);
-            float.TryParse(diskThickness, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.diskThickness);
-            float.TryParse(minStarSize, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.minStarSize);
-            float.TryParse(maxStarSize, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.maxStarSize);
-
-            int.TryParse(armCount, out cfg.armCount);
-            float.TryParse(armTightness, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.armTightness);
-            float.TryParse(armWidth, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.armWidth);
-            float.TryParse(interarmFraction, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.interarmFraction);
-            float.TryParse(armConcentration, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.armConcentration);
-
-            float.TryParse(bulgeFraction, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.bulgeFraction);
-            float.TryParse(bulgeScaleX, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.bulgeScaleX);
-            float.TryParse(bulgeScaleY, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.bulgeScaleY);
-            float.TryParse(bulgeScaleZ, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.bulgeScaleZ);
-
-            float.TryParse(colorBulgeR, NumberStyles.Float, CultureInfo.InvariantCulture, out float cbr);
-            float.TryParse(colorBulgeG, NumberStyles.Float, CultureInfo.InvariantCulture, out float cbg);
-            float.TryParse(colorBulgeB, NumberStyles.Float, CultureInfo.InvariantCulture, out float cbb);
-            if (!float.TryParse(colorBulgeA, NumberStyles.Float, CultureInfo.InvariantCulture, out float cba)) cba = 1f;
-            cfg.colorBulge = new Color(cbr, cbg, cbb, cba);
-
-            float.TryParse(colorArmsR, NumberStyles.Float, CultureInfo.InvariantCulture, out float car);
-            float.TryParse(colorArmsG, NumberStyles.Float, CultureInfo.InvariantCulture, out float cag);
-            float.TryParse(colorArmsB, NumberStyles.Float, CultureInfo.InvariantCulture, out float cab);
-            if (!float.TryParse(colorArmsA, NumberStyles.Float, CultureInfo.InvariantCulture, out float caa)) caa = 1f;
-            cfg.colorArms = new Color(car, cag, cab, caa);
-
-            float.TryParse(colorInterarmR, NumberStyles.Float, CultureInfo.InvariantCulture, out float cir);
-            float.TryParse(colorInterarmG, NumberStyles.Float, CultureInfo.InvariantCulture, out float cig);
-            float.TryParse(colorInterarmB, NumberStyles.Float, CultureInfo.InvariantCulture, out float cib);
-            if (!float.TryParse(colorInterarmA, NumberStyles.Float, CultureInfo.InvariantCulture, out float cia)) cia = 1f;
-            cfg.colorInterarm = new Color(cir, cig, cib, cia);
-
-            float.TryParse(armHighlightColorR, NumberStyles.Float, CultureInfo.InvariantCulture, out float ahr);
-            float.TryParse(armHighlightColorG, NumberStyles.Float, CultureInfo.InvariantCulture, out float ahg);
-            float.TryParse(armHighlightColorB, NumberStyles.Float, CultureInfo.InvariantCulture, out float ahb);
-            if (!float.TryParse(armHighlightColorA, NumberStyles.Float, CultureInfo.InvariantCulture, out float aha)) aha = 1f;
-            cfg.armHighlightColor = new Color(ahr, ahg, ahb, aha);
-            float.TryParse(armHighlightChance, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.armHighlightChance);
-
-            float.TryParse(rotationX, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.rotationX);
-            float.TryParse(rotationY, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.rotationY);
-            float.TryParse(rotationZ, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.rotationZ);
-            cfg.alignRotationToOrbit = alignRotationToOrbit;
-            float.TryParse(rotationPeriod, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.rotationPeriod);
-            float.TryParse(diskScaleLengthFraction, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.diskScaleLengthFraction);
-
-            float.TryParse(objectScale, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.objectScale);
-            float.TryParse(renderScale, NumberStyles.Float, CultureInfo.InvariantCulture, out cfg.renderScale);
-
-            if (isRing) RingConfig.Normalize(cfg);
-            return cfg;
+            return values;
         }
 
-        private void ShowConfig()
+        private GalaxyConfig BuildConfigFromFields()
         {
-            CelestialBody body = GetSelectedBody();
-            GalaxyConfig cfg = BuildConfigFromFields();
-            configText = GenerateConfigText(cfg, body?.name ?? "");
+            ConfigEditorResult result = ConfigEditor.ReadValues(isRing, CaptureFieldValues(), false);
+            if (!result.IsValid) throw new FormatException(string.Join("\n", result.errors.ToArray()));
+            return result.config;
+        }
+
+        private void EnsureConfigText()
+        {
+            if (configInitialized) return;
+            configInitialized = true;
+            var text = new System.Text.StringBuilder((isRing ? RingConfig.NodeName : "GalacticDiskDefinition") + "\n{\n");
+            foreach (var entry in CaptureFieldValues())
+                text.Append("    ").Append(entry.Key).Append(" = ").Append(entry.Value).Append('\n');
+            configText = text.Append('}').ToString();
+        }
+
+        private void EditConfigText(string edited)
+        {
+            configInitialized = true;
+            configText = edited;
+            operationMessage = "";
+            textValidation = ConfigEditor.Read(configText);
+            lastConfigText = configText;
+            if (textValidation.IsValid)
+            {
+                int index = FlightGlobals.Bodies.FindIndex(body => body != null && body.name == textValidation.config.planet);
+                if (index >= 0) selectedBodyIndex = index;
+                PopulateFieldsFromConfig(textValidation.config);
+            }
+            lastFieldFingerprint = null;
+            RefreshEditorDiagnostics();
+        }
+
+        private bool SaveToConfig()
+        {
+            EnsureConfigText();
+            RefreshEditorDiagnostics();
+            if (!fieldValidation.IsValid)
+            {
+                operationMessage = "Error: fields contain invalid values; the config text was preserved.";
+                return false;
+            }
+            configText = GenerateConfigText(fieldValidation.config, GetSelectedBody()?.name ?? "");
+            lastConfigText = null;
+            operationMessage = "Fields saved to the config text. Save the .cfg file manually.";
+            RefreshEditorDiagnostics();
+            return true;
+        }
+
+        private void RefreshEditorDiagnostics()
+        {
+            EnsureConfigText();
+            bool changed = false;
+            if (lastConfigText != configText || textValidation == null)
+            {
+                textValidation = ConfigEditor.Read(configText);
+                lastConfigText = configText; changed = true;
+            }
+            var inputs = CaptureFieldValues();
+            var fingerprint = new System.Text.StringBuilder(isRing ? "Ring\n" : "Galaxy\n");
+            foreach (var entry in inputs) fingerprint.Append(entry.Key).Append('=').Append(entry.Value).Append('\n');
+            string current = fingerprint.ToString();
+            if (lastFieldFingerprint != current || fieldValidation == null)
+            {
+                if (lastFieldFingerprint != null) operationMessage = "";
+                fieldValidation = ConfigEditor.ReadValues(isRing, inputs, true);
+                lastFieldFingerprint = current; changed = true;
+            }
+            if (!changed) return;
+            editorErrors.Clear(); editorWarnings.Clear();
+            foreach (string error in textValidation.errors) editorErrors.Add("Config: " + error);
+            foreach (string error in fieldValidation.errors) editorErrors.Add("Fields: " + error);
+            foreach (string warning in textValidation.warnings) editorWarnings.Add(warning);
+            foreach (string warning in fieldValidation.warnings)
+                if (!editorWarnings.Contains(warning)) editorWarnings.Add(warning);
+            if (textValidation.IsValid && fieldValidation.IsValid)
+                foreach (string difference in ConfigEditor.Differences(fieldValidation.config, textValidation.config))
+                    editorWarnings.Add("Fields/config mismatch: " + difference);
+        }
+
+        private void DrawEditorDiagnostics()
+        {
+            int count = editorErrors.Count + editorWarnings.Count + (operationMessage.Length > 0 ? 1 : 0);
+            diagnosticsScroll = GUILayout.BeginScrollView(diagnosticsScroll, GUILayout.Height(Mathf.Clamp(count * 24f, 24f, 90f)));
+            Color previous = GUI.contentColor;
+            var style = new GUIStyle(GUI.skin.label) { wordWrap = true };
+            if (operationMessage.Length > 0)
+            {
+                GUI.contentColor = operationMessage.StartsWith("Error:") ? new Color(1f, 0.45f, 0.4f) : previous;
+                GUILayout.Label(operationMessage, style);
+            }
+            GUI.contentColor = new Color(1f, 0.45f, 0.4f);
+            foreach (string error in editorErrors) GUILayout.Label("Error: " + error, style);
+            GUI.contentColor = new Color(1f, 0.8f, 0.35f);
+            foreach (string warning in editorWarnings) GUILayout.Label("Warning: " + warning, style);
+            GUI.contentColor = previous;
+            if (count == 0) GUILayout.Label("Fields and config match.", style);
+            GUILayout.EndScrollView();
         }
 
         private string GenerateConfigText(GalaxyConfig cfg, string planetName)
@@ -1317,33 +1393,36 @@ namespace GalacticDisk
                 $"    planet = {planetName}\n" +
                 $"    renderMode = {cfg.renderMode}\n" +
                 $"    starCount = {cfg.starCount.ToString(ci)}\n" +
-                $"    galaxyRadius = {cfg.galaxyRadius.ToString(ci)}\n" +
-                $"    diskThickness = {cfg.diskThickness.ToString(ci)}\n" +
-                $"    minStarSize = {cfg.minStarSize.ToString(ci)}\n" +
-                $"    maxStarSize = {cfg.maxStarSize.ToString(ci)}\n" +
+                $"    galaxyRadius = {cfg.galaxyRadius.ToString("R", ci)}\n" +
+                $"    diskThickness = {cfg.diskThickness.ToString("R", ci)}\n" +
+                $"    minStarSize = {cfg.minStarSize.ToString("R", ci)}\n" +
+                $"    maxStarSize = {cfg.maxStarSize.ToString("R", ci)}\n" +
                 $"    armCount = {cfg.armCount.ToString(ci)}\n" +
-                $"    armTightness = {cfg.armTightness.ToString(ci)}\n" +
-                $"    armWidth = {cfg.armWidth.ToString(ci)}\n" +
-                $"    interarmFraction = {cfg.interarmFraction.ToString(ci)}\n" +
-                $"    armConcentration = {cfg.armConcentration.ToString(ci)}\n" +
-                $"    bulgeFraction = {cfg.bulgeFraction.ToString(ci)}\n" +
-                $"    bulgeScaleX = {cfg.bulgeScaleX.ToString(ci)}\n" +
-                $"    bulgeScaleY = {cfg.bulgeScaleY.ToString(ci)}\n" +
-                $"    bulgeScaleZ = {cfg.bulgeScaleZ.ToString(ci)}\n" +
-                $"    colorBulge = {cfg.colorBulge.r.ToString(ci)}, {cfg.colorBulge.g.ToString(ci)}, {cfg.colorBulge.b.ToString(ci)}, {cfg.colorBulge.a.ToString(ci)}\n" +
-                $"    colorArms = {cfg.colorArms.r.ToString(ci)}, {cfg.colorArms.g.ToString(ci)}, {cfg.colorArms.b.ToString(ci)}, {cfg.colorArms.a.ToString(ci)}\n" +
-                $"    colorInterarm = {cfg.colorInterarm.r.ToString(ci)}, {cfg.colorInterarm.g.ToString(ci)}, {cfg.colorInterarm.b.ToString(ci)}, {cfg.colorInterarm.a.ToString(ci)}\n" +
-                $"    armHighlightColor = {cfg.armHighlightColor.r.ToString(ci)}, {cfg.armHighlightColor.g.ToString(ci)}, {cfg.armHighlightColor.b.ToString(ci)}, {cfg.armHighlightColor.a.ToString(ci)}\n" +
-                $"    armHighlightChance = {cfg.armHighlightChance.ToString(ci)}\n" +
-                $"    rotationX = {cfg.rotationX.ToString(ci)}\n" +
-                $"    rotationY = {cfg.rotationY.ToString(ci)}\n" +
-                $"    rotationZ = {cfg.rotationZ.ToString(ci)}\n" +
+                $"    armTightness = {cfg.armTightness.ToString("R", ci)}\n" +
+                $"    armWidth = {cfg.armWidth.ToString("R", ci)}\n" +
+                $"    interarmFraction = {cfg.interarmFraction.ToString("R", ci)}\n" +
+                $"    armConcentration = {cfg.armConcentration.ToString("R", ci)}\n" +
+                $"    bulgeFraction = {cfg.bulgeFraction.ToString("R", ci)}\n" +
+                $"    bulgeScaleX = {cfg.bulgeScaleX.ToString("R", ci)}\n" +
+                $"    bulgeScaleY = {cfg.bulgeScaleY.ToString("R", ci)}\n" +
+                $"    bulgeScaleZ = {cfg.bulgeScaleZ.ToString("R", ci)}\n" +
+                $"    colorBulge = {cfg.colorBulge.r.ToString("R", ci)}, {cfg.colorBulge.g.ToString("R", ci)}, {cfg.colorBulge.b.ToString("R", ci)}, {cfg.colorBulge.a.ToString("R", ci)}\n" +
+                $"    colorArms = {cfg.colorArms.r.ToString("R", ci)}, {cfg.colorArms.g.ToString("R", ci)}, {cfg.colorArms.b.ToString("R", ci)}, {cfg.colorArms.a.ToString("R", ci)}\n" +
+                $"    colorInterarm = {cfg.colorInterarm.r.ToString("R", ci)}, {cfg.colorInterarm.g.ToString("R", ci)}, {cfg.colorInterarm.b.ToString("R", ci)}, {cfg.colorInterarm.a.ToString("R", ci)}\n" +
+                $"    armHighlightColor = {cfg.armHighlightColor.r.ToString("R", ci)}, {cfg.armHighlightColor.g.ToString("R", ci)}, {cfg.armHighlightColor.b.ToString("R", ci)}, {cfg.armHighlightColor.a.ToString("R", ci)}\n" +
+                $"    armHighlightChance = {cfg.armHighlightChance.ToString("R", ci)}\n" +
+                $"    rotationX = {cfg.rotationX.ToString("R", ci)}\n" +
+                $"    rotationY = {cfg.rotationY.ToString("R", ci)}\n" +
+                $"    rotationZ = {cfg.rotationZ.ToString("R", ci)}\n" +
                 $"    alignRotationToOrbit = {cfg.alignRotationToOrbit}\n" +
-                $"    rotationPeriod = {cfg.rotationPeriod.ToString(ci)}\n" +
-                $"    diskScaleLengthFraction = {cfg.diskScaleLengthFraction.ToString(ci)}\n" +
-                $"    objectScale = {cfg.objectScale.ToString(ci)}\n" +
-                $"    renderScale = {cfg.renderScale.ToString(ci)}\n" +
-                VolumeConfig.Export(cfg) +
+                $"    rotationPeriod = {cfg.rotationPeriod.ToString("R", ci)}\n" +
+                $"    spinAroundDiskAxis = {VolumeConfig.Format(cfg.spinAroundDiskAxis)}\n" +
+                $"    diskScaleLengthFraction = {cfg.diskScaleLengthFraction.ToString("R", ci)}\n" +
+                $"    objectScale = {cfg.objectScale.ToString("R", ci)}\n" +
+                $"    renderScale = {cfg.renderScale.ToString("R", ci)}\n" +
+                $"    usesTexture = {VolumeConfig.Format(cfg.usesTexture)}\n" +
+                $"    texturePath = {cfg.texturePath}\n" +
+                VolumeConfig.Export(cfg, true) +
                 "}";
         }
 
@@ -1352,8 +1431,10 @@ namespace GalacticDisk
         // instead of the user re-typing everything from scratch.
         private void PopulateFieldsFromConfig(GalaxyConfig cfg)
         {
+            operationMessage = "";
+            lastFieldFingerprint = null;
             isRing = cfg.isRing;
-            innerRingRadius = cfg.innerRingRadius.ToString(CultureInfo.InvariantCulture);
+            innerRingRadius = cfg.innerRingRadius.ToString("R", CultureInfo.InvariantCulture);
             renderMode = cfg.renderMode;
             volumeFields = cfg.volume;
             volumeInputs.Clear();
@@ -1362,52 +1443,55 @@ namespace GalacticDisk
             CultureInfo ci = CultureInfo.InvariantCulture;
 
             starCount = cfg.starCount.ToString(ci);
-            galaxyRadius = cfg.galaxyRadius.ToString(ci);
-            diskThickness = cfg.diskThickness.ToString(ci);
-            minStarSize = cfg.minStarSize.ToString(ci);
-            maxStarSize = cfg.maxStarSize.ToString(ci);
+            galaxyRadius = cfg.galaxyRadius.ToString("R", ci);
+            diskThickness = cfg.diskThickness.ToString("R", ci);
+            minStarSize = cfg.minStarSize.ToString("R", ci);
+            maxStarSize = cfg.maxStarSize.ToString("R", ci);
 
             armCount = cfg.armCount.ToString(ci);
-            armTightness = cfg.armTightness.ToString(ci);
-            armWidth = cfg.armWidth.ToString(ci);
-            interarmFraction = cfg.interarmFraction.ToString(ci);
-            armConcentration = cfg.armConcentration.ToString(ci);
+            armTightness = cfg.armTightness.ToString("R", ci);
+            armWidth = cfg.armWidth.ToString("R", ci);
+            interarmFraction = cfg.interarmFraction.ToString("R", ci);
+            armConcentration = cfg.armConcentration.ToString("R", ci);
 
-            bulgeFraction = cfg.bulgeFraction.ToString(ci);
-            bulgeScaleX = cfg.bulgeScaleX.ToString(ci);
-            bulgeScaleY = cfg.bulgeScaleY.ToString(ci);
-            bulgeScaleZ = cfg.bulgeScaleZ.ToString(ci);
+            bulgeFraction = cfg.bulgeFraction.ToString("R", ci);
+            bulgeScaleX = cfg.bulgeScaleX.ToString("R", ci);
+            bulgeScaleY = cfg.bulgeScaleY.ToString("R", ci);
+            bulgeScaleZ = cfg.bulgeScaleZ.ToString("R", ci);
 
-            colorBulgeR = cfg.colorBulge.r.ToString(ci);
-            colorBulgeG = cfg.colorBulge.g.ToString(ci);
-            colorBulgeB = cfg.colorBulge.b.ToString(ci);
-            colorBulgeA = cfg.colorBulge.a.ToString(ci);
+            colorBulgeR = cfg.colorBulge.r.ToString("R", ci);
+            colorBulgeG = cfg.colorBulge.g.ToString("R", ci);
+            colorBulgeB = cfg.colorBulge.b.ToString("R", ci);
+            colorBulgeA = cfg.colorBulge.a.ToString("R", ci);
 
-            colorArmsR = cfg.colorArms.r.ToString(ci);
-            colorArmsG = cfg.colorArms.g.ToString(ci);
-            colorArmsB = cfg.colorArms.b.ToString(ci);
-            colorArmsA = cfg.colorArms.a.ToString(ci);
+            colorArmsR = cfg.colorArms.r.ToString("R", ci);
+            colorArmsG = cfg.colorArms.g.ToString("R", ci);
+            colorArmsB = cfg.colorArms.b.ToString("R", ci);
+            colorArmsA = cfg.colorArms.a.ToString("R", ci);
 
-            colorInterarmR = cfg.colorInterarm.r.ToString(ci);
-            colorInterarmG = cfg.colorInterarm.g.ToString(ci);
-            colorInterarmB = cfg.colorInterarm.b.ToString(ci);
-            colorInterarmA = cfg.colorInterarm.a.ToString(ci);
+            colorInterarmR = cfg.colorInterarm.r.ToString("R", ci);
+            colorInterarmG = cfg.colorInterarm.g.ToString("R", ci);
+            colorInterarmB = cfg.colorInterarm.b.ToString("R", ci);
+            colorInterarmA = cfg.colorInterarm.a.ToString("R", ci);
 
-            armHighlightColorR = cfg.armHighlightColor.r.ToString(ci);
-            armHighlightColorG = cfg.armHighlightColor.g.ToString(ci);
-            armHighlightColorB = cfg.armHighlightColor.b.ToString(ci);
-            armHighlightColorA = cfg.armHighlightColor.a.ToString(ci);
-            armHighlightChance = cfg.armHighlightChance.ToString(ci);
+            armHighlightColorR = cfg.armHighlightColor.r.ToString("R", ci);
+            armHighlightColorG = cfg.armHighlightColor.g.ToString("R", ci);
+            armHighlightColorB = cfg.armHighlightColor.b.ToString("R", ci);
+            armHighlightColorA = cfg.armHighlightColor.a.ToString("R", ci);
+            armHighlightChance = cfg.armHighlightChance.ToString("R", ci);
 
-            rotationX = cfg.rotationX.ToString(ci);
-            rotationY = cfg.rotationY.ToString(ci);
-            rotationZ = cfg.rotationZ.ToString(ci);
+            rotationX = cfg.rotationX.ToString("R", ci);
+            rotationY = cfg.rotationY.ToString("R", ci);
+            rotationZ = cfg.rotationZ.ToString("R", ci);
             alignRotationToOrbit = cfg.alignRotationToOrbit;
-            rotationPeriod = cfg.rotationPeriod.ToString(ci);
-            diskScaleLengthFraction = cfg.diskScaleLengthFraction.ToString(ci);
+            spinAroundDiskAxis = cfg.spinAroundDiskAxis;
+            rotationPeriod = cfg.rotationPeriod.ToString("R", ci);
+            diskScaleLengthFraction = cfg.diskScaleLengthFraction.ToString("R", ci);
 
-            objectScale = cfg.objectScale.ToString(ci);
-            renderScale = cfg.renderScale.ToString(ci);
+            objectScale = cfg.objectScale.ToString("R", ci);
+            renderScale = cfg.renderScale.ToString("R", ci);
+            usesTexture = cfg.usesTexture;
+            texturePath = cfg.texturePath;
         }
 
         // Reads the selected body's currently-applied disk config, if it has one,
@@ -1421,12 +1505,15 @@ namespace GalacticDisk
             GalaxyConfig cfg = GalacticDiskGenerator.GetConfig(body.name);
             if (cfg == null)
             {
-                configText = $"({body.name} has no disk to load.)";
+                operationMessage = $"Warning: {body.name} has no disk to load. The config text was preserved.";
                 return;
             }
 
             PopulateFieldsFromConfig(cfg);
-            configText = "";
+            configInitialized = true;
+            configText = GenerateConfigText(cfg, body.name);
+            lastConfigText = null;
+            operationMessage = "Loaded the selected disk into the fields and config text.";
         }
 
         // Replaces the selected body's disk in place with the current field
@@ -1437,15 +1524,21 @@ namespace GalacticDisk
             CelestialBody body = GetSelectedBody();
             if (body == null) return;
 
-            GalaxyConfig cfg = BuildConfigFromFields();
+            RefreshEditorDiagnostics();
+            if (!fieldValidation.IsValid || !textValidation.IsValid)
+            {
+                operationMessage = "Error: fix the field/config errors before applying, or save valid fields to config.";
+                return;
+            }
+            GalaxyConfig cfg = fieldValidation.config;
             try
             {
                 GalacticDiskGenerator.ApplyDisk(body, cfg);
-                configText = "";
+                operationMessage = "Applied the fields to the selected disk.";
             }
             catch (Exception ex)
             {
-                configText = "Could not apply disk: " + ex.Message;
+                operationMessage = "Error: could not apply disk: " + ex.Message;
                 Debug.LogError("[GalacticDisk] " + ex);
             }
         }

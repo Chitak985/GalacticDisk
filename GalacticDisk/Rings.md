@@ -27,7 +27,7 @@ The existing `volumeIntensity`, `volumeExposure`, `volumeSteps`, `cloudResolutio
 
 `objectScale`, `renderScale`, `rotationX/Y/Z`, `alignRotationToOrbit`, and `rotationPeriod` work as they do for galaxy disks. Volumetric rings use the same per-camera drawing method that avoids distant-body proxy culling.
 
-The toolbar has **Galaxy / Ring** and **Particles / Volumetric** selectors. Loading, applying, and exporting a ring preserves its node type and renamed fields. Galaxy-only controls are hidden for rings.
+The toolbar has **Galaxy / Ring** and **Particles / Volumetric** selectors. Loading, applying, and exporting a ring preserves its node type and renamed fields. Galaxy-only controls are hidden for rings. The [config editor guide](ConfigEditor.md) covers direct text editing, validation, mismatches and `spinAroundDiskAxis`.
 
 Galaxy and ring definitions can coexist on the same body. Galaxy nodes load first, followed by ring nodes; the toolbar edits the last loaded definition for that body, following the existing layered-disk behavior. Applying toolbar changes does not write config files.
 

@@ -21,6 +21,9 @@ all new parameters, platform bundles, building, and verification.
 particle or volumetric rendering, and dust. See [the ring guide](GalacticDisk/Rings.md)
 and `GalacticDisk/ExampleRingConfig.txt` for the config and renamed parameters.
 
+The [config editor guide](GalacticDisk/ConfigEditor.md) covers the editable config text,
+validation and field/config mismatch warnings, plus optional spin around the tilted disk axis.
+
 ## Downloads
 SpaceDock: https://spacedock.info/mod/4384/GalacticDisk <br>
 CKAN: soon <br>

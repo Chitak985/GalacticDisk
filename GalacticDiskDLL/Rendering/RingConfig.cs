@@ -16,7 +16,8 @@ namespace GalacticDisk.Rendering
             { "maxParticleSize", "maxStarSize" }, { "diskScaleLengthFraction", "diskScaleLengthFraction" },
             { "color", "colorInterarm" }, { "rotationX", "rotationX" }, { "rotationY", "rotationY" },
             { "rotationZ", "rotationZ" }, { "alignRotationToOrbit", "alignRotationToOrbit" },
-            { "rotationPeriod", "rotationPeriod" }, { "usesTexture", "usesTexture" }, { "texturePath", "texturePath" }
+            { "rotationPeriod", "rotationPeriod" }, { "spinAroundDiskAxis", "spinAroundDiskAxis" },
+            { "usesTexture", "usesTexture" }, { "texturePath", "texturePath" }
         };
 
         public static bool IsVolumeOption(string name)
@@ -32,6 +33,16 @@ namespace GalacticDisk.Rendering
             }
         }
         public static string OptionName(string name) { return name == "starBrightness" ? "particleBrightness" : name; }
+        internal static string SharedFieldName(string key)
+        {
+            for (int i = 0; i < fields.GetLength(0); i++) if (fields[i, 0] == key) return fields[i, 1];
+            return null;
+        }
+        internal static string ConfigFieldName(string shared)
+        {
+            for (int i = 0; i < fields.GetLength(0); i++) if (fields[i, 1] == shared) return fields[i, 0];
+            return null;
+        }
 
         public static GalaxyConfig Read(ConfigNode node)
         {

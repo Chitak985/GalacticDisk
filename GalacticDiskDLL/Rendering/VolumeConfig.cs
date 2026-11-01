@@ -67,9 +67,9 @@ namespace GalacticDisk.Rendering
             }
         }
 
-        public static string Export(GalaxyConfig config)
+        public static string Export(GalaxyConfig config, bool includeInactive = false)
         {
-            if (config.renderMode != DiskRenderMode.Volumetric) return "";
+            if (!includeInactive && config.renderMode != DiskRenderMode.Volumetric) return "";
             var text = new StringBuilder();
             foreach (var field in OptionFields)
                 text.Append("    ").Append(field.Name).Append(" = ").Append(Format(field.GetValue(config.volume))).Append('\n');
@@ -81,9 +81,10 @@ namespace GalacticDisk.Rendering
             if (value is Color)
             {
                 var color = (Color)value;
-                return string.Join(", ", color.r.ToString(CultureInfo.InvariantCulture), color.g.ToString(CultureInfo.InvariantCulture),
-                    color.b.ToString(CultureInfo.InvariantCulture), color.a.ToString(CultureInfo.InvariantCulture));
+                return string.Join(", ", color.r.ToString("R", CultureInfo.InvariantCulture), color.g.ToString("R", CultureInfo.InvariantCulture),
+                    color.b.ToString("R", CultureInfo.InvariantCulture), color.a.ToString("R", CultureInfo.InvariantCulture));
             }
+            if (value is float) return ((float)value).ToString("R", CultureInfo.InvariantCulture);
             if (value is bool) return (bool)value ? "true" : "false";
             return Convert.ToString(value, CultureInfo.InvariantCulture);
         }

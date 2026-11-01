@@ -22,7 +22,7 @@ Alternatively, in the existing toolbar:
 3. Optionally click **Load Milky Way preset into fields**. It fills the appearance controls, preserving your current scale/rotation settings.
 4. Expand **Volume, dust, nebulae and bar** to change the new controls. Common star, arm, bulge, color, rotation, and scale fields remain in their existing sections.
 5. Click **Apply** to create or replace the body's disk. A failed build leaves its previous renderer intact and shows the error in the window.
-6. Click **Show config** and manually save the generated text as a `.cfg` for future game sessions. Applying settings does not write your GameData files.
+6. Edit the always-visible config text directly, or click **Save to config** to copy field changes into it. Errors, warnings, and field/config differences appear above the text. Save the generated text as a `.cfg` manually for future sessions. Applying settings does not write GameData files. See [the config editor guide](ConfigEditor.md).
 
 New disks still need a useful `objectScale`; the old default of 1 is usually too small to see outside a celestial body. The example uses `objectScale = 1.5e15` and `renderScale = 1e8`; choose scales appropriate to your planetary system.
 

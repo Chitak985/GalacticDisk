@@ -37,6 +37,7 @@ GalacticDiskDefinition                    // The config node for spawning a disk
     rotationX = 0                         // Tilts the disk
     rotationZ = 0                         // Orients which direction the tilt axis points
     rotationPeriod = 1000                 // Seconds to complete one full rotation, defaults to 0 which will make the disk static.
+    spinAroundDiskAxis = false            // True spins around the tilted disk axis; rotationY remains a world-Y heading.
     usesTexture = false                   // Will make the particles the disk uses use a custom texture
     texturePath = YourMod/Textures/e.png  // The texture the disk particles use. Ignored if usesTexture is false
 }

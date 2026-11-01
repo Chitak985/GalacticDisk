@@ -95,4 +95,5 @@ GalacticDiskDefinition
     rotationZ = 0
     alignRotationToOrbit = false
     rotationPeriod = 0
+    spinAroundDiskAxis = false
 }

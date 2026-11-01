@@ -89,6 +89,7 @@
     <Compile Include="Rendering\GalaxyStarGenerator.cs" />
     <Compile Include="Rendering\VolumeConfig.cs" />
     <Compile Include="Rendering\RingConfig.cs" />
+    <Compile Include="Rendering\ConfigEditor.cs" />
     <Compile Include="Rendering\GalaxyShaderAssets.cs" />
     <Compile Include="Rendering\VolumetricDiskRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
