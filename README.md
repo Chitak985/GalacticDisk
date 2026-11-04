@@ -2,29 +2,19 @@
 
 Adds galactic disks to KSP from just configs!
 
-Supports the original particle renderer and an optional volumetric renderer with dust clouds,
-star-forming nebulae, a central bar, and mesh-based stars. Existing configs default to particles.
+The mod allows you to create galactic disks of any size and 3D rings. You can make them be made out of particles and/or volumetric with a built-in shader.
 
 ## Dependencies
 Nothing except for maybe ModuleManager but everyone has it anyway...
 
 ## Adding disks
-See `GalacticDisk/ExampleConfig.txt` for the original renderer and
-`GalacticDisk/ExampleVolumetricConfig.txt` for a Milky Way-style volumetric disk.
-Rename the desired example to `.cfg` to enable it. Multiple definitions can intentionally
-layer disks around one body; the toolbar edits the last definition for that body.
+You can manually create a config based on the example configs (see text files in the mod folder) or use the in-game GUI opened by a toolbar button. (the icon is a galaxy)
 
-See [the volumetric guide](GalacticDisk/Volumetric.md) for installation, controls,
-all new parameters, platform bundles, building, and verification.
+In configs, GalacticDiskDefinition is the node used for disks and GalacticDiskRingDefinition for rings. `renderMode` decides what type the object is, this can be set to Volumetric to make the object volumetric in addition to particles. Do not set the value to keep the object particle-only.
 
-`GalacticDiskRingDefinition` adds a single-color ring with an optional central opening,
-particle or volumetric rendering, and dust. See [the ring guide](GalacticDisk/Rings.md)
-and `GalacticDisk/ExampleRingConfig.txt` for the config and renamed parameters.
-
-The [config editor guide](GalacticDisk/ConfigEditor.md) covers the editable config text,
-validation and field/config mismatch warnings, plus optional spin around the tilted disk axis.
+For a detailed explanation of each value, see the example configs, specifically the normal ExampleConfig.txt config.
 
 ## Downloads
 SpaceDock: https://spacedock.info/mod/4384/GalacticDisk <br>
-CKAN: soon <br>
+CKAN <br>
 or just download ZIP from GitHub and move the GalacticDisk folder inside the GalacticDisk-main repo folder to GameData.
