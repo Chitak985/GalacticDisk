@@ -1,8 +1,7 @@
 // Rename to .cfg to enable. Avoid enabling both examples unless you want layered disks.
-// All lengths below are unscaled galaxy units; objectScale changes the final visible size.
 GalacticDiskDefinition
 {
-    planet = TheGreatAttractor //Eeloo
+    planet = Eeloo
     renderMode = Volumetric
 
     // Overall size and resolved mesh stars
@@ -48,6 +47,7 @@ GalacticDiskDefinition
     colorArms = 0.62, 0.76, 1, 0.8
     colorInterarm = 0.88, 0.82, 0.68, 0.65
     armHighlightColor = 1, 0.38, 0.53, 0.85
+
     armHighlightChance = 0.035
 
     // Dark, clumpy dust clouds and spiral lanes
@@ -89,7 +89,7 @@ GalacticDiskDefinition
     noiseFrequency = 24
     starDustSamples = 12
 
-    // Orientation; zero period keeps the galaxy stationary
+    // Rotation
     rotationX = 0
     rotationY = 0
     rotationZ = 0
