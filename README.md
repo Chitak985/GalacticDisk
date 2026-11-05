@@ -15,6 +15,7 @@ In configs, GalacticDiskDefinition is the node used for disks and GalacticDiskRi
 For a detailed explanation of each value, see the example configs, specifically the normal ExampleConfig.txt config.
 
 ## Downloads
-SpaceDock: https://spacedock.info/mod/4384/GalacticDisk <br>
-CKAN <br>
-or just download ZIP from GitHub and move the GalacticDisk folder inside the GalacticDisk-main repo folder to GameData.
+- SpaceDock: https://spacedock.info/mod/4384/GalacticDisk
+- CKAN
+- GitHub releases: Versions 1.0.0, 1.0.1, 1.1.0, 1.2.0, 1.2.1, 1.4.0 are not in releases but all versions after those are.
+- GitHub source: Download the ZIP, unzip it, and move the GalacticDisk folder inside the GalacticDisk-main repo folder to GameData. Do note that this is sort of a development build and it may be unstable or have features not in the latest stable release.
