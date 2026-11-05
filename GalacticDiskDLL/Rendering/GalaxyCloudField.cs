@@ -3,7 +3,9 @@ using UnityEngine;
 
 namespace GalacticDisk.Rendering
 {
-    /// <summary>A shared 3D density field used by both the ray marcher and individual stars.</summary>
+    /// <summary>
+    /// 3D density field used by both the ray marcher and individual stars.
+    /// </summary>
     public sealed class GalaxyCloudField
     {
         public Texture3D texture;
@@ -18,39 +20,45 @@ namespace GalacticDisk.Rendering
             int width = s.cloudResolution;
             int height = Mathf.Clamp(Mathf.RoundToInt(width * extents.y / Mathf.Max(extents.x, extents.z)), 32, 128);
             int depth = width;
-            var pixels = new Color[width * height * depth];
-            var result = new GalaxyCloudField();
-            var random = new System.Random(unchecked(s.seed + 17041));
+            Color pixels = new Color[width * height * depth];
+            GalaxyCloudField result = new GalaxyCloudField();
+            System.Random random = new System.Random(unchecked(s.seed + 17041));
             float radius = s.galaxyRadius;
             float sigma = s.armWidth * Mathf.Lerp(0.6f, 0.05f, s.armConcentration);
             float dustHeight = Mathf.Max(radius * 0.0015f, s.diskThickness * 0.12f);
 
-            // R: obscuring dust, G: HII emission, B: blue association glow, A: diffuse clump noise.
+            // R: obscuring dust, G: HII emission, B: blue association glow, A: diffuse clump noise
             for (int z = 0; z < depth; z++)
-            for (int x = 0; x < width; x++)
-            {
-                float px = Axis(x, width, extents.x), pz = Axis(z, depth, extents.z);
-                float r = Mathf.Sqrt(px * px + pz * pz) / radius;
-                float radial = Mathf.Exp(-r / 0.5f) * (1f - Smooth(0.88f, 1f, r));
-                if (s.isRing) radial = Mathf.Exp(-(r - s.innerRingRadius / radius) / 0.5f);
-                float phase = Mathf.Atan2(pz, px) - s.ArmAngle(r * radius);
-                float laneDistance = ArmDistance(phase - sigma * 1.1f, s.armCount);
-                float laneSigma = Mathf.Max(0.01f, sigma * s.dustLaneWidth);
-                float lane = Mathf.Exp(-0.5f * laneDistance * laneDistance / (laneSigma * laneSigma));
-                float innerFade = Smooth(0.1f, 0.22f, r);
-                if (s.armCount == 0) lane = 0.2f;
-                if (s.isRing) { lane = 1f; innerFade = 1f; }
-                for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
                 {
-                    Vector3 p = new Vector3(px, Axis(y, height, extents.y), pz);
-                    float n = FractalNoise(p / radius * s.noiseFrequency, s.seed);
-                    float dustY = p.y / dustHeight;
-                    float density = s.enableDustClouds ? radial * innerFade * lane *
-                        Mathf.Exp(-0.5f * dustY * dustY) * s.dustLaneStrength *
-                        Mathf.Lerp(1f, 0.18f + n * n * 3f, s.dustCloudClumpiness) : 0f;
-                    pixels[x + width * (y + height * z)] = new Color(density, 0f, 0f, n);
+                    float px = Axis(x, width, extents.x), pz = Axis(z, depth, extents.z);
+                    float r = Mathf.Sqrt(px * px + pz * pz) / radius;
+                    float radial = Mathf.Exp(-r / 0.5f) * (1f - Smooth(0.88f, 1f, r));
+                    if (s.isRing)
+                        radial = Mathf.Exp(-(r - s.innerRingRadius / radius) / 0.5f);
+                    float phase = Mathf.Atan2(pz, px) - s.ArmAngle(r * radius);
+                    float laneDistance = ArmDistance(phase - sigma * 1.1f, s.armCount);
+                    float laneSigma = Mathf.Max(0.01f, sigma * s.dustLaneWidth);
+                    float lane = Mathf.Exp(-0.5f * laneDistance * laneDistance / (laneSigma * laneSigma));
+                    float innerFade = Smooth(0.1f, 0.22f, r);
+                    if (s.armCount == 0)
+                        lane = 0.2f;
+                    if (s.isRing)
+                    {
+                        lane = 1f;
+                        innerFade = 1f;
+                    }
+                    for (int y = 0; y < height; y++)
+                    {
+                        Vector3 p = new Vector3(px, Axis(y, height, extents.y), pz);
+                        float n = FractalNoise(p / radius * s.noiseFrequency, s.seed);
+                        float dustY = p.y / dustHeight;
+                        float density = s.enableDustClouds ? radial * innerFade * lane *
+                            Mathf.Exp(-0.5f * dustY * dustY) * s.dustLaneStrength *
+                            Mathf.Lerp(1f, 0.18f + n * n * 3f, s.dustCloudClumpiness) : 0f;
+                        pixels[x + width * (y + height * z)] = new Color(density, 0f, 0f, n);
+                    }
                 }
-            }
 
             if (s.enableDustClouds)
             {
@@ -80,7 +88,7 @@ namespace GalacticDisk.Rendering
                 Deposit(pixels, width, height, depth, extents, center,
                     new Vector3(size * 1.2f, Mathf.Max(size * 0.55f, extents.y / height * 1.4f), size), angle, 1,
                     Mathf.Lerp(0.3f, 0.8f, Next(random)), s.starFormingRegionClumpiness, s.seed + region * 53);
-                // Each nebula is an irregular complex of lobes, not one spherical pink sprite.
+                // Each nebula is an irregular complex of lobes, this avoids them looking the same color
                 for (int lobe = 0; lobe < 3; lobe++)
                 {
                     Vector3 offset = new Vector3(Gaussian(random), Gaussian(random) * 0.18f, Gaussian(random)) * size * 0.55f;
@@ -94,21 +102,23 @@ namespace GalacticDisk.Rendering
             }
 
             for (int z = 0; z < depth; z++)
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                int index = x + width * (y + height * z);
-                if (s.isRing)
-                {
-                    float px = Axis(x, width, extents.x), pz = Axis(z, depth, extents.z);
-                    float r2 = px * px + pz * pz;
-                    if (r2 < s.innerRingRadius * s.innerRingRadius || r2 > radius * radius) pixels[index] = Color.clear;
-                }
-                Color voxel = pixels[index];
-                result.dustMass += voxel.r;
-                result.nebulaMass += voxel.g;
-                result.youngGlowMass += voxel.b;
-            }
+                for (int y = 0; y < height; y++)
+                    for (int x = 0; x < width; x++)
+                    {
+                        int index = x + width * (y + height * z);
+                        if (s.isRing)
+                        {
+                            float px = Axis(x, width, extents.x), pz = Axis(z, depth, extents.z);
+                            float r2 = px * px + pz * pz;
+                            if (r2 < s.innerRingRadius * s.innerRingRadius || r2 > radius * radius)
+                                pixels[index] = Color.clear;
+                        }
+                        Color voxel = pixels[index];
+                        result.dustMass += voxel.r;
+                        result.nebulaMass += voxel.g;
+                        result.youngGlowMass += voxel.b;
+                    }
+            
             result.texture = new Texture3D(width, height, depth, TextureFormat.RGBAHalf, false)
             {
                 name = "Galaxy cloud densities (R dust, G nebulae, B young glow, A noise)",
@@ -132,33 +142,39 @@ namespace GalacticDisk.Rendering
             int z0 = Index(min.z, depth, extents.z), z1 = Index(max.z, depth, extents.z);
             float sin = Mathf.Sin(angle), cos = Mathf.Cos(angle);
             for (int z = z0; z <= z1; z++)
-            for (int y = y0; y <= y1; y++)
-            for (int x = x0; x <= x1; x++)
-            {
-                Vector3 p = new Vector3(Axis(x, width, extents.x), Axis(y, height, extents.y),
-                    Axis(z, depth, extents.z)) - center;
-                Vector3 q = new Vector3((cos * p.x + sin * p.z) / size.x,
-                    p.y / size.y, (-sin * p.x + cos * p.z) / size.z);
-                float distance = q.sqrMagnitude;
-                if (distance > 2.56f) continue;
-                float n = Noise(q * 3.6f + Vector3.one * 11.7f, seed);
-                float grain = Mathf.Lerp(1f, 0.06f + Mathf.Pow(n * 1.6f, 3f), clumpiness);
-                float density = Mathf.Exp(-distance * 2.8f) * grain * strength;
-                int index = x + width * (y + height * z);
-                Color voxel = pixels[index];
-                if (channel == 0) voxel.r += density;
-                else if (channel == 1) voxel.g += density;
-                else voxel.b += density;
-                pixels[index] = voxel;
-            }
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        Vector3 p = new Vector3(Axis(x, width, extents.x), Axis(y, height, extents.y),
+                            Axis(z, depth, extents.z)) - center;
+                        Vector3 q = new Vector3((cos * p.x + sin * p.z) / size.x,
+                            p.y / size.y, (-sin * p.x + cos * p.z) / size.z);
+                        float distance = q.sqrMagnitude;
+                        if (distance > 2.56f)
+                            continue;
+                        float n = Noise(q * 3.6f + Vector3.one * 11.7f, seed);
+                        float grain = Mathf.Lerp(1f, 0.06f + Mathf.Pow(n * 1.6f, 3f), clumpiness);
+                        float density = Mathf.Exp(-distance * 2.8f) * grain * strength;
+                        int index = x + width * (y + height * z);
+                        Color voxel = pixels[index];
+                        if (channel == 0)
+                            voxel.r += density;
+                        else if (channel == 1)
+                            voxel.g += density;
+                        else
+                            voxel.b += density;
+                        pixels[index] = voxel;
+                    }
         }
 
         public static Vector3 SampleArmPoint(GalaxySettings s, System.Random random,
             float inner, float outer, float armBias, float angularOffset)
         {
             float r = Mathf.Lerp(inner, outer, Mathf.Sqrt(Next(random))) * s.galaxyRadius;
-            if (s.isRing) r = Mathf.Sqrt(Mathf.Lerp(s.innerRingRadius * s.innerRingRadius,
-                s.galaxyRadius * s.galaxyRadius, Next(random)));
+            if (s.isRing)
+                r = Mathf.Sqrt(Mathf.Lerp(s.innerRingRadius * s.innerRingRadius,
+                                          s.galaxyRadius * s.galaxyRadius,
+                                          Next(random)));
             float angle = Next(random) * Mathf.PI * 2f;
             if (s.armCount > 0 && Next(random) < armBias)
             {
@@ -166,14 +182,14 @@ namespace GalacticDisk.Rendering
                 angle = s.ArmAngle(r) + random.Next(s.armCount) * Mathf.PI * 2f / s.armCount +
                     Gaussian(random) * sigma * 0.4f + angularOffset;
             }
-            return new Vector3(Mathf.Cos(angle) * r, Gaussian(random) * s.diskThickness * 0.055f,
-                Mathf.Sin(angle) * r);
+            return new Vector3(Mathf.Cos(angle) * r,
+                               Gaussian(random) * s.diskThickness * 0.055f,
+                               Mathf.Sin(angle) * r);
         }
-        private static float Axis(int i, int length, float extent) { return ((i + 0.5f) / length * 2f - 1f) * extent; }
+        private static float Axis(int i, int length, float extent)
+            => ((i + 0.5f) / length * 2f - 1f) * extent;
         private static int Index(float p, int length, float extent)
-        {
-            return Mathf.Clamp(Mathf.FloorToInt((p / extent * 0.5f + 0.5f) * length), 0, length - 1);
-        }
+            => Mathf.Clamp(Mathf.FloorToInt((p / extent * 0.5f + 0.5f) * length), 0, length - 1);
         private static float ArmDistance(float angle, int count)
         {
             count = Mathf.Max(1, count);
@@ -184,16 +200,12 @@ namespace GalacticDisk.Rendering
             float t = Mathf.Clamp01((x - min) / (max - min));
             return t * t * (3f - 2f * t);
         }
-        private static float Next(System.Random random) { return (float)random.NextDouble(); }
+        private static float Next(System.Random random)
+            => (float)random.NextDouble();
         private static float Gaussian(System.Random random)
-        {
-            return Mathf.Sqrt(-2f * Mathf.Log(Mathf.Max(0.000001f, Next(random)))) *
-                Mathf.Cos(2f * Mathf.PI * Next(random));
-        }
+            => Mathf.Sqrt(-2f * Mathf.Log(Mathf.Max(0.000001f, Next(random)))) * Mathf.Cos(2f * Mathf.PI * Next(random));
         private static float FractalNoise(Vector3 p, int seed)
-        {
-            return Noise(p, seed) * 0.65f + Noise(p * 2.07f + Vector3.one * 9.3f, seed) * 0.35f;
-        }
+            => Noise(p, seed) * 0.65f + Noise(p * 2.07f + Vector3.one * 9.3f, seed) * 0.35f;
         private static float Noise(Vector3 p, int seed)
         {
             int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y), z = Mathf.FloorToInt(p.z);
