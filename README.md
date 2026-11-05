@@ -4,6 +4,8 @@ Adds galactic disks to KSP from just configs!
 
 The mod allows you to create galactic disks of any size and 3D rings. You can make them be made out of particles and/or volumetric with a built-in shader.
 
+This project is mostly possible due to the capabilities of LLMs but I am doing my best to rewrite/reformat/reorganize the code after it to keep it clean and less buggy.
+
 ## Dependencies
 Nothing except for maybe ModuleManager but everyone has it anyway...
 
