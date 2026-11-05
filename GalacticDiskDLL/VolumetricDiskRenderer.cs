@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     /// <summary>
     /// Renders a volumetric disk or ring using a shader.
@@ -62,7 +62,7 @@ namespace GalacticDisk.Rendering
                 box.layer = 10;
                 box.transform.SetParent(transform, false);
                 box.transform.localScale = extents * 2f;
-                var collider = box.GetComponent<Collider>();
+                Collider collider = box.GetComponent<Collider>();
                 if (collider != null) { collider.enabled = false; Release(collider); }
                 Mesh cube = Instantiate(box.GetComponent<MeshFilter>().sharedMesh);
                 cube.name = "GalacticDisk volume bounds";
@@ -102,11 +102,11 @@ namespace GalacticDisk.Rendering
             for (int first = 0; first < stars.Length; first += batchSize)
             {
                 int count = Mathf.Min(batchSize, stars.Length - first);
-                var positions = new Vector3[count * 4];
-                var colors = new Color32[count * 4];
-                var uv = new Vector2[count * 4];
-                var sizes = new Vector2[count * 4];
-                var indices = new int[count * 6];
+                Vector3[] positions = new Vector3[count * 4];
+                Color32[] colors = new Color32[count * 4];
+                Vector2[] uv = new Vector2[count * 4];
+                Vector2[] sizes = new Vector2[count * 4];
+                int[] indices = new int[count * 6];
                 for (int i = 0; i < count; i++)
                 {
                     GalaxyStar star = stars[first + i];
@@ -125,12 +125,16 @@ namespace GalacticDisk.Rendering
                 Mesh mesh = new Mesh
                 {
                     name = "GalacticDisk stars " + first,
-                    indexFormat = IndexFormat.UInt16
+                    indexFormat = IndexFormat.UInt16,
+                    vertices = positions,
+                    colors32 = colors,
+                    uv = uv,
+                    uv2 = sizes,
+                    triangles = indices,
+                    bounds = new Bounds(Vector3.zero,
+                        (extents * 2f + Vector3.one * settings.maxStarSize * 2f) * Mathf.Max(1f, config.renderScale))
                 };
                 meshes.Add(mesh);
-                mesh.vertices = positions; mesh.colors32 = colors; mesh.uv = uv; mesh.uv2 = sizes; mesh.triangles = indices;
-                mesh.bounds = new Bounds(Vector3.zero, (extents * 2f + Vector3.one * settings.maxStarSize * 2f) *
-                    Mathf.Max(1f, config.renderScale));
                 mesh.UploadMeshData(true);
                 GameObject batch = new GameObject("Mesh stars " + first)
                 {
@@ -216,7 +220,7 @@ namespace GalacticDisk.Rendering
         private void PruneCameraBuffers()
         {
             staleCameras.Clear();
-            foreach (var entry in cameraDraws)
+            foreach (KeyValuePair<Camera,CameraDraws> entry in cameraDraws)
                 if (entry.Key == null)
                     staleCameras.Add(entry.Key);
             foreach (Camera camera in staleCameras)
@@ -240,7 +244,7 @@ namespace GalacticDisk.Rendering
         /// </summary>
         private void ReleaseCameraBuffers()
         {
-            foreach (var entry in cameraDraws)
+            foreach (KeyValuePair<Camera,CameraDraws> entry in cameraDraws)
                 ReleaseCameraBuffers(entry.Key, entry.Value);
             cameraDraws.Clear();
         }
@@ -262,17 +266,19 @@ namespace GalacticDisk.Rendering
         public void DisposeResources()
         {
             ReleaseCameraBuffers();
-            foreach (var renderer in renderers)
+            foreach (MeshRenderer renderer in renderers)
                 if (renderer != null)
                     renderer.enabled = false;
             renderers.Clear();
-            foreach (var mesh in meshes) Release(mesh);
+            foreach (Mesh mesh in meshes) Release(mesh);
             meshes.Clear();
             Release(volumeMaterial); Release(starMaterial);
             if (cloudField != null) Release(cloudField.texture);
             cloudField = null; volumeMaterial = null; starMaterial = null;
         }
+        
         private void OnDestroy() { DisposeResources(); }
+        
         /// <summary>
         /// Release a <see cref="UnityEngine.Object"/> correctly.
         /// If application is running the object is destroyed,

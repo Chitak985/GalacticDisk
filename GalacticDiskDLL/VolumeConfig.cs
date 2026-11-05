@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     public enum DiskRenderMode { Particles, Volumetric }
 
@@ -16,8 +16,8 @@ namespace GalacticDisk.Rendering
 
         private static FieldInfo[] GetOptionFields()
         {
-            var fields = new List<FieldInfo>();
-            foreach (var field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
+            List<FieldInfo> fields = new List<FieldInfo>();
+            foreach (FieldInfo field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
                 if (typeof(GalaxyConfig).GetField(field.Name) == null) fields.Add(field);
             fields.Sort((a, b) => a.MetadataToken.CompareTo(b.MetadataToken));
             return fields.ToArray();
@@ -31,7 +31,7 @@ namespace GalacticDisk.Rendering
                     config.renderMode = mode;
                 else Debug.LogWarning("[GalacticDisk] Unknown renderMode; using Particles.");
             }
-            foreach (var field in OptionFields)
+            foreach (FieldInfo field in OptionFields)
             {
                 if (config.isRing && !RingConfig.IsVolumeOption(field.Name)) continue;
                 string key = config.isRing ? RingConfig.OptionName(field.Name) : field.Name;
@@ -42,10 +42,10 @@ namespace GalacticDisk.Rendering
 
         public static GalaxySettings SettingsFor(GalaxyConfig config)
         {
-            var result = new GalaxySettings();
-            foreach (var field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
+            GalaxySettings result = new GalaxySettings();
+            foreach (FieldInfo field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
             {
-                var shared = typeof(GalaxyConfig).GetField(field.Name);
+                FieldInfo shared = typeof(GalaxyConfig).GetField(field.Name);
                 field.SetValue(result, shared != null ? shared.GetValue(config) : field.GetValue(config.volume));
             }
             if (config.isRing) RingConfig.Configure(result);
@@ -55,18 +55,18 @@ namespace GalacticDisk.Rendering
 
         public static void ApplyMilkyWayPreset(GalaxyConfig config)
         {
-            var preset = new GalaxySettings();
+            GalaxySettings preset = new GalaxySettings();
             config.renderMode = DiskRenderMode.Volumetric;
             config.volume = preset;
-            foreach (var field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
+            foreach (FieldInfo field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
                 (typeof(GalaxyConfig).GetField(field.Name))?.SetValue(config, field.GetValue(preset));
         }
 
         public static string Export(GalaxyConfig config, bool includeInactive = false)
         {
             if (!includeInactive && config.renderMode != DiskRenderMode.Volumetric) return "";
-            var text = new StringBuilder();
-            foreach (var field in OptionFields)
+            StringBuilder text = new StringBuilder();
+            foreach (FieldInfo field in OptionFields)
                 text.Append("    ").Append(field.Name).Append(" = ").Append(Format(field.GetValue(config.volume))).Append('\n');
             return text.ToString();
         }

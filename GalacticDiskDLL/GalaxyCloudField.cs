@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     /// <summary>
     /// 3D density field used by both the ray marcher and individual stars.
@@ -20,7 +20,7 @@ namespace GalacticDisk.Rendering
             int width = s.cloudResolution;
             int height = Mathf.Clamp(Mathf.RoundToInt(width * extents.y / Mathf.Max(extents.x, extents.z)), 32, 128);
             int depth = width;
-            Color pixels = new Color[width * height * depth];
+            Color[] pixels = new Color[width * height * depth];
             GalaxyCloudField result = new GalaxyCloudField();
             System.Random random = new System.Random(unchecked(s.seed + 17041));
             float radius = s.galaxyRadius;

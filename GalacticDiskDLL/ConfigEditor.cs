@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     internal sealed class ConfigEditorResult
     {
@@ -168,7 +168,7 @@ namespace GalacticDisk.Rendering
             Dictionary<string, Type> schema = Schema(ring);
             ConfigNode node = new ConfigNode(ring ? RingConfig.NodeName : GalaxyNode);
             
-            foreach (var entry in values)
+            foreach (KeyValuePair<string,string> entry in values)
             {
                 string prefix = lines != null && lines.ContainsKey(entry.Key) ? "Line " + lines[entry.Key] + ": " : "";
 
@@ -196,7 +196,7 @@ namespace GalacticDisk.Rendering
                 ConfigNode resultingNode = new ConfigNode(GalaxyNode);
                 GalaxyConfig defaults = new GalaxyConfig();
                 
-                foreach (var entry in values)
+                foreach (KeyValuePair<string,string> entry in values)
                     if (schema.ContainsKey(entry.Key) && Array.IndexOf(legacyNames, entry.Key) < 0)
                         resultingNode.AddValue(entry.Key, entry.Value);
                 
@@ -286,7 +286,7 @@ namespace GalacticDisk.Rendering
             if (result.errors.Count > 0) return;
             
             GalaxySettings normalized = VolumeConfig.SettingsFor(c);
-            foreach (var field in typeof(GalaxySettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
+            foreach (FieldInfo field in typeof(GalaxySettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
                 if ((field.Name == "isRing" || field.Name == "innerRingRadius") ||
                     (c.isRing && RingConfig.ConfigFieldName(field.Name) == null && !RingConfig.IsVolumeOption(field.Name)))
@@ -308,7 +308,7 @@ namespace GalacticDisk.Rendering
             if (fields.isRing != text.isRing)
                 differences.Add("definition: fields = " + (fields.isRing ? RingConfig.NodeName : GalaxyNode) + "; config = " + (text.isRing ? RingConfig.NodeName : GalaxyNode));
            
-            foreach (var entry in Schema(fields.isRing))
+            foreach (KeyValuePair<string,Type> entry in Schema(fields.isRing))
             {
                 if (Array.IndexOf(legacyNames, entry.Key) >= 0)
                     continue;

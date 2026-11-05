@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     internal static class GalaxyShaderAssets
     {

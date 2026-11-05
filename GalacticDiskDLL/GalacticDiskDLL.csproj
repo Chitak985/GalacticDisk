@@ -83,15 +83,18 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GalacticDiskObject.cs" />
+    <Compile Include="GalacticDiskToolbar.cs" />
+    <Compile Include="GalaxyConfig.cs" />
     <Compile Include="Main.cs" />
-    <Compile Include="Rendering\GalaxySettings.cs" />
-    <Compile Include="Rendering\GalaxyCloudField.cs" />
-    <Compile Include="Rendering\GalaxyStarGenerator.cs" />
-    <Compile Include="Rendering\VolumeConfig.cs" />
-    <Compile Include="Rendering\RingConfig.cs" />
-    <Compile Include="Rendering\ConfigEditor.cs" />
-    <Compile Include="Rendering\GalaxyShaderAssets.cs" />
-    <Compile Include="Rendering\VolumetricDiskRenderer.cs" />
+    <Compile Include="GalaxySettings.cs" />
+    <Compile Include="GalaxyCloudField.cs" />
+    <Compile Include="GalaxyStarGenerator.cs" />
+    <Compile Include="VolumeConfig.cs" />
+    <Compile Include="RingConfig.cs" />
+    <Compile Include="ConfigEditor.cs" />
+    <Compile Include="GalaxyShaderAssets.cs" />
+    <Compile Include="VolumetricDiskRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

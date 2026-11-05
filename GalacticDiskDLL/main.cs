@@ -1,10 +1,8 @@
 ﻿using KSP.UI.Screens;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using UnityEngine;
-using GalacticDisk.Rendering;
 
 namespace GalacticDisk
 {
@@ -17,26 +15,34 @@ namespace GalacticDisk
     [KSPAddon(KSPAddon.Startup.SpaceCentre, false)]
     public class GalacticDiskGenerator : MonoBehaviour
     {
-        // Manual persistence: KSPAddon's built-in "once" flag did not reliably survive
-        // scene unloads in testing (OnDestroy still fired switching scenes), so this
-        // instance is kept alive by hand via DontDestroyOnLoad below. Whenever KSP tries
-        // to spin up a second copy on a later SpaceCentre load, it self-destructs in
-        // Start() instead, leaving the original (and its toolbar/button state) in place.
         private static GalacticDiskGenerator instance;
 
-        // Keep track of all disks we created so the UI can find them later
+        /// <summary>
+        /// List of all GalacticDisk disks currently loaded.
+        /// </summary>
         internal static Dictionary<string, GameObject> disksByPlanet = new Dictionary<string, GameObject>();
+        /// <summary>
+        /// List of all GalacticDisk <see cref="GalaxyConfig"/> currently loaded.
+        /// </summary>
         private static readonly Dictionary<string, GalaxyConfig> appliedConfigs = new Dictionary<string, GalaxyConfig>();
+        /// <summary>
+        /// Frames since the last time all GalacticDisks were refreshed.
+        /// </summary>
         private int recoveryFrames;
 
-        // The toolbar UI instance, drawn from OnGUI when the app-launcher button is toggled on.
+        /// <summary>
+        /// <see cref="GalacticDiskToolbar"/> instance for the toolbar window.
+        /// </summary>
         private GalacticDiskToolbar toolbar;
 
-        // The stock toolbar (ApplicationLauncher) button and its icon.
+        /// <summary>
+        /// Toolbar button for the GalacticDisk window.
+        /// </summary>
         private ApplicationLauncherButton launcherButton;
 
-        // Path (relative to GameData) to the icon texture. Swap this to your own
-        // 38x38 (or 36x36) PNG once you have one — see AddLauncherButton below.
+        /// <summary>
+        /// Path from GameData to the GalacticDisk icon.
+        /// </summary>
         private const string IconTexturePath = "GalacticDisk/Icons/toolbar_icon";
 
         public void Start()
@@ -61,7 +67,7 @@ namespace GalacticDisk
 
         internal void LoadDefinitions()
         {
-            var definitions = new List<ConfigNode>(GameDatabase.Instance.GetConfigNodes("GalacticDiskDefinition"));
+            List<ConfigNode> definitions = new List<ConfigNode>(GameDatabase.Instance.GetConfigNodes("GalacticDiskDefinition"));
             definitions.AddRange(GameDatabase.Instance.GetConfigNodes(RingConfig.NodeName));
             foreach (ConfigNode node in definitions)
             {
@@ -123,10 +129,10 @@ namespace GalacticDisk
 
             if (launcherButton != null) return;
 
-            // GetTexture looks up GameData/GalacticDisk/Icons/toolbar_icon.png (or .dds/.tga).
-            // Falls back to a plain generated dot so the button always shows something.
+            // Load the toolbar texture or fall back to a generated dot
             Texture2D icon = GameDatabase.Instance.GetTexture(IconTexturePath, false) ?? CreateDefaultParticleTexture(38);
 
+            // Create the launcher button
             launcherButton = ApplicationLauncher.Instance.AddModApplication(
                 onTrue: () => toolbar.SetVisible(true),
                 onFalse: () => toolbar.SetVisible(false),
@@ -137,10 +143,7 @@ namespace GalacticDisk
                 visibleInScenes: ApplicationLauncher.AppScenes.ALWAYS,
                 texture: icon);
 
-            // A freshly-created button always starts toggled off. Sync its visual
-            // state to whatever the window is currently showing (it persists across
-            // scenes) using the "false" makeCall overload so this doesn't re-fire
-            // onTrue/onFalse and stomp on that same state.
+            // Make sure the toolbar button is in the correct state
             if (toolbar.IsVisible)
                 launcherButton.SetTrue(false);
             else
@@ -155,17 +158,13 @@ namespace GalacticDisk
 
             if (launcherButton == null) return;
 
-            // The ApplicationLauncher itself may already be mid-teardown by the time
-            // this fires, so removal can throw. Always clear our reference regardless —
-            // holding on to a stale button blocks AddLauncherButton from ever running
-            // again on the next scene, which is what made the icon vanish for good.
             try
             {
                 ApplicationLauncher.Instance?.RemoveModApplication(launcherButton);
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[GalacticDisk] Failed to cleanly remove launcher button: {ex}");
+                Debug.LogWarning($"[GalacticDisk] Failed to remove launcher button: {ex}");
             }
             finally
             {
@@ -173,39 +172,58 @@ namespace GalacticDisk
             }
         }
 
-        void OnGUI()
+        public void OnGUI()
         {
             toolbar?.OnClick();
         }
 
-        // Reattach a disk if a scene transition replaces its scaled-space parent.
-        void Update()
+        public void Update()
         {
             if (++recoveryFrames < 60) return;
             recoveryFrames = 0;
-            if (HighLogic.LoadedScene != GameScenes.SPACECENTER && HighLogic.LoadedScene != GameScenes.FLIGHT &&
+            if (HighLogic.LoadedScene != GameScenes.SPACECENTER &&
+                HighLogic.LoadedScene != GameScenes.FLIGHT &&
                 HighLogic.LoadedScene != GameScenes.TRACKSTATION) return;
-            foreach (var entry in new List<KeyValuePair<string, GalaxyConfig>>(appliedConfigs))
+            foreach (KeyValuePair<string, GalaxyConfig> entry
+                in new List<KeyValuePair<string, GalaxyConfig>>(appliedConfigs))
             {
                 if (disksByPlanet.TryGetValue(entry.Key, out GameObject disk) && disk != null) continue;
-                var body = FlightGlobals.GetBodyByName(entry.Key);
+                CelestialBody body = FlightGlobals.GetBodyByName(entry.Key);
                 if (body?.scaledBody == null) continue;
-                try { ApplyDisk(body, entry.Value); }
-                catch (Exception ex) { Debug.LogError("[GalacticDisk] Scene recovery failed: " + ex); }
+                try
+                {
+                    ApplyDisk(body, entry.Value);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError("[GalacticDisk] Scene recovery failed: " + ex);
+                }
             }
         }
 
-        void ProcessObject(GameObject go, GalaxyConfig config) { RegenerateDisk(go, config); }
+        public void ProcessObject(GameObject go, GalaxyConfig config)
+        {
+            RegenerateDisk(go, config);
+        }
 
-        // Stage replacements first so a failed build leaves the current disk intact.
+        /// <summary>
+        /// Regenerates a GalacticDisk of the provided <see cref="GameObject"/> with the provided <see cref="GalaxyConfig"/>.
+        /// If this fails no changes are applied and the original disk is left the same.
+        /// </summary>
         internal static void RegenerateDisk(GameObject go, GalaxyConfig config)
         {
-            if (config == null || config.starCount < 0 || config.starCount > 2000000 ||
-                !IsPositiveFinite(config.galaxyRadius) || !IsPositiveFinite(config.objectScale) || !IsPositiveFinite(config.renderScale) ||
+            if (config == null ||
+                config.starCount < 0 || config.starCount > 2000000 ||
+                !IsPositiveFinite(config.galaxyRadius) ||
+                !IsPositiveFinite(config.objectScale) ||
+                !IsPositiveFinite(config.renderScale) ||
                 !IsPositiveFinite(config.objectScale * config.renderScale))
-                throw new ArgumentException("Radius/scales must be finite and positive; starCount must be between 0 and 2000000.");
-            if (config.isRing) VolumeConfig.SettingsFor(config); // Validate before replacing a working renderer.
-            var staged = new GameObject("GalacticDisk Renderer") { layer = 10 };
+                throw new ArgumentException("Radius/scales must be finite and positive, starCount must be between 0 and 2000000, and/or config is null.");
+            if (config.isRing) VolumeConfig.SettingsFor(config); // Validate before replacing a working renderer
+            GameObject staged = new GameObject("GalacticDisk Renderer")
+            {
+                layer = 10
+            };
             go.transform.localScale = Vector3.one;
             staged.transform.SetParent(go.transform, false);
             Material material = null;
@@ -228,14 +246,14 @@ namespace GalacticDisk
                     staged.transform.localScale = Vector3.one * (config.objectScale * config.renderScale);
                     ps = staged.AddComponent<ParticleSystem>();
                     ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                    var main = ps.main;
+                    ParticleSystem.MainModule main = ps.main;
                     main.maxParticles = Mathf.Max(1, config.starCount);
                     main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
                     main.simulationSpace = ParticleSystemSimulationSpace.Local;
                     main.scalingMode = ParticleSystemScalingMode.Local;
                     main.loop = false; main.playOnAwake = false; main.startSpeed = 0f;
-                    var emission = ps.emission; emission.enabled = false;
-                    var shape = ps.shape; shape.enabled = false;
+                    ParticleSystem.EmissionModule emission = ps.emission; emission.enabled = false;
+                    ParticleSystem.ShapeModule shape = ps.shape; shape.enabled = false;
                     texture = CreateDefaultParticleTexture();
                     if (config.usesTexture && File.Exists(config.texturePath)) texture.LoadImage(File.ReadAllBytes(config.texturePath));
                     else if (config.usesTexture) Debug.LogWarning("[GalacticDisk] Particle texture not found: " + config.texturePath);
@@ -253,7 +271,7 @@ namespace GalacticDisk
                     ps.Simulate(0f, true, true); ps.Play(true); ps.Pause(true);
                     particles = GenerateGalaxy(ps, config);
                 }
-                var owner = go.GetComponent<GalacticDiskObject>() ?? go.AddComponent<GalacticDiskObject>();
+                GalacticDiskObject owner = go.GetComponent<GalacticDiskObject>() ?? go.AddComponent<GalacticDiskObject>();
                 owner.ReleaseRenderer();
                 owner.config = config;
                 owner.orbitBody = FlightGlobals.GetBodyByName(config.planet);
@@ -511,1042 +529,6 @@ namespace GalacticDisk
 
             tex.Apply();
             return tex;
-        }
-    }
-
-    public class GalaxyConfig
-    {
-        public string planet;
-        public DiskRenderMode renderMode = DiskRenderMode.Particles;
-        public GalaxySettings volume = new GalaxySettings();
-        public bool isRing;
-        public float innerRingRadius;
-
-        public int starCount = 50000;
-        public float galaxyRadius = 100f;
-        public float diskThickness = 2f;
-        public float minStarSize = 0.015f;
-        public float maxStarSize = 0.09f;
-
-        public int armCount = 4;
-        public float armTightness = 4f;
-        public float armWidth = 0.25f;
-
-        public float interarmFraction = 0.25f;
-        public float armConcentration = 0.35f;
-
-        public float bulgeFraction = 0.15f;
-
-        // Bulge is a smooth ellipsoid with an independently-scaled extent on each
-        // axis. Replaces the old single bulgeRadius (a sphere with X=Z, and Y
-        // implicitly at 0.15x). Defaults reproduce roughly that old proportion.
-        public float bulgeScaleX = 15f;
-        public float bulgeScaleY = 2.25f;
-        public float bulgeScaleZ = 15f;
-
-        // Separate colors for each population, replacing the old color1 (inner)/
-        // color2 (outer) radial blend. Defaults mirror the old defaults: bulge and
-        // arms took after color1 (warm), interarm took after color2 (cool/blue).
-        public Color colorBulge = new Color(1.0f, 0.92f, 0.65f, 1.0f);
-        public Color colorArms = new Color(1.0f, 0.92f, 0.65f, 1.0f);
-        public Color colorInterarm = new Color(0.45f, 0.65f, 1.0f, 1.0f);
-
-        // Optional highlight color sprinkled onto arm stars only (not bulge, not
-        // interarm) to simulate HII regions/star clusters. Chance defaults to 0
-        // so existing configs render identically unless they opt in.
-        public Color armHighlightColor = new Color(1.0f, 0.55f, 0.6f, 1.0f);
-        public float armHighlightChance = 0f;
-
-        // Fixed WORLD rotation (Euler degrees) the disk is held at every frame,
-        // overriding whatever rotation it would otherwise inherit from its parent
-        // scaled-space body. Defaults to 0,0,0, which matches the disk's previous
-        // (unintentional) behavior of just sitting at identity rotation — so an
-        // existing config with a non-spinning parent body sees no change.
-        public float rotationX = 0f;
-        public float rotationY = 0f;
-        public float rotationZ = 0f;
-
-        // When true, ignore rotationX/rotationZ and instead compute the disk's
-        // tilt directly from the orbit of the body it's attached to (config.planet),
-        // so the disk plane is guaranteed coplanar with that orbit regardless of
-        // how inclination/LAN were set up. rotationY still applies as a free spin
-        // around the resulting plane normal. Defaults to false — manual rotationX/
-        // Y/Z behave exactly as before unless this is turned on.
-        public bool alignRotationToOrbit = false;
-
-        // Seconds for the disk to complete one full rotation about its own plane
-        // normal (added on top of rotationY / alignRotationToOrbit). 0 (default)
-        // disables this entirely — no extra spin, matching old behavior. Uses
-        // Planetarium.GetUniversalTime() rather than accumulating per-frame deltas,
-        // so it's exact at any timewarp rate and never drifts.
-        public float rotationPeriod = 0f;
-        // Optional spin about the tilted disk normal. Manual rotationY remains a world-Y heading.
-        public bool spinAroundDiskAxis = false;
-
-        // Fraction of galaxyRadius used as the exponential falloff scale length
-        // for star density (was hardcoded to 0.25 previously). Lower = fades out
-        // faster near the center; higher = a more gradual, extended-looking disk.
-        // Default matches the old hardcoded behavior exactly.
-        public float diskScaleLengthFraction = 0.25f;
-
-        public bool usesTexture = false;
-        public string texturePath = "";
-
-        // Visible size multiplier. The legacy emitter itself uses objectScale * renderScale;
-        // volume shaders project in galaxy units and apply objectScale independently.
-        // Both support scientific notation via GetFloat's NumberStyles.Float parsing.
-        public float objectScale = 1f;
-
-        // Additional scale applied only to the legacy emitter (not to the visible size of
-        // the disk) so KSP sees a much larger object and doesn't cull/hide it from far
-        // away. Particle positions/sizes are generated pre-divided by this value to
-        // cancel it back out visually. Volumetric proxies handle culling independently.
-        public float renderScale = 1f;
-
-        public static GalaxyConfig FromConfigNode(ConfigNode node)
-        {
-            if (node.name == RingConfig.NodeName) return RingConfig.Read(node);
-            GalaxyConfig c = new GalaxyConfig();
-
-            c.planet = GetString(node, "planet", c.planet);
-            VolumeConfig.Read(node, c);
-
-            c.starCount = GetInt(node, "starCount", c.starCount);
-            c.galaxyRadius = GetFloat(node, "galaxyRadius", c.galaxyRadius);
-            c.diskThickness = GetFloat(node, "diskThickness", c.diskThickness);
-            c.minStarSize = GetFloat(node, "minStarSize", c.minStarSize);
-            c.maxStarSize = GetFloat(node, "maxStarSize", c.maxStarSize);
-
-            c.armCount = GetInt(node, "armCount", c.armCount);
-            c.armTightness = GetFloat(node, "armTightness", c.armTightness);
-            c.armWidth = GetFloat(node, "armWidth", c.armWidth);
-
-            c.interarmFraction = GetFloat(node, "interarmFraction", c.interarmFraction);
-            c.armConcentration = GetFloat(node, "armConcentration", c.armConcentration);
-
-            c.bulgeFraction = GetFloat(node, "bulgeFraction", c.bulgeFraction);
-
-            if (node.HasValue("bulgeRadius"))
-            {
-                float legacyRadius = GetFloat(node, "bulgeRadius", c.bulgeScaleX);
-                c.bulgeScaleX = legacyRadius;
-                c.bulgeScaleY = legacyRadius;
-                c.bulgeScaleZ = legacyRadius;
-                Debug.LogWarning("[GalacticDisk] Config field 'bulgeRadius' is obsolete — use bulgeScaleX/bulgeScaleY/bulgeScaleZ instead. Setting all three to the given value for now.");
-            }
-            c.bulgeScaleX = GetFloat(node, "bulgeScaleX", c.bulgeScaleX);
-            c.bulgeScaleY = GetFloat(node, "bulgeScaleY", c.bulgeScaleY);
-            c.bulgeScaleZ = GetFloat(node, "bulgeScaleZ", c.bulgeScaleZ);
-
-            if (node.HasValue("color1"))
-            {
-                Color legacyColor1 = GetColor(node, "color1", c.colorBulge);
-                c.colorBulge = legacyColor1;
-                c.colorArms = legacyColor1;
-                Debug.LogWarning("[GalacticDisk] Config field 'color1' is obsolete — use colorBulge/colorArms instead. Using it as the default for both for now.");
-            }
-            if (node.HasValue("color2"))
-            {
-                c.colorInterarm = GetColor(node, "color2", c.colorInterarm);
-                Debug.LogWarning("[GalacticDisk] Config field 'color2' is obsolete — use colorInterarm instead. Using it as the default for now.");
-            }
-            c.colorBulge = GetColor(node, "colorBulge", c.colorBulge);
-            c.colorArms = GetColor(node, "colorArms", c.colorArms);
-            c.colorInterarm = GetColor(node, "colorInterarm", c.colorInterarm);
-
-            c.armHighlightColor = GetColor(node, "armHighlightColor", c.armHighlightColor);
-            c.armHighlightChance = GetFloat(node, "armHighlightChance", c.armHighlightChance);
-
-            c.rotationX = GetFloat(node, "rotationX", c.rotationX);
-            c.rotationY = GetFloat(node, "rotationY", c.rotationY);
-            c.rotationZ = GetFloat(node, "rotationZ", c.rotationZ);
-            c.alignRotationToOrbit = GetBool(node, "alignRotationToOrbit", c.alignRotationToOrbit);
-            c.rotationPeriod = GetFloat(node, "rotationPeriod", c.rotationPeriod);
-            c.spinAroundDiskAxis = GetBool(node, "spinAroundDiskAxis", c.spinAroundDiskAxis);
-            c.diskScaleLengthFraction = GetFloat(node, "diskScaleLengthFraction", c.diskScaleLengthFraction);
-
-            c.usesTexture = GetBool(node, "usesTexture", c.usesTexture);
-            string rawPath = GetString(node, "texturePath", "");
-            if (!string.IsNullOrEmpty(rawPath))
-                c.texturePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", rawPath);
-            else
-            {
-                c.texturePath = "";  // Let GenerateGalaxy handle default case
-                if (c.usesTexture)
-                {
-                    c.usesTexture = false;
-                    Debug.LogWarning("[GalacticDisk] No texturePath but uses a custom texture, using default texture instead.");
-                }
-            }
-
-            c.objectScale = GetFloat(node, "objectScale", c.objectScale);
-            c.renderScale = GetFloat(node, "renderScale", c.renderScale);
-
-            return c;
-        }
-
-        static string GetString(ConfigNode node, string key, string fallback)
-        {
-            return node.HasValue(key) ? node.GetValue(key) : fallback;
-        }
-
-        static int GetInt(ConfigNode node, string key, int fallback)
-        {
-            if (node.HasValue(key) && int.TryParse(node.GetValue(key), out int result))
-                return result;
-            return fallback;
-        }
-
-        static float GetFloat(ConfigNode node, string key, float fallback)
-        {
-            if (node.HasValue(key) &&
-                float.TryParse(node.GetValue(key), NumberStyles.Float, CultureInfo.InvariantCulture, out float result))
-                return result;
-            return fallback;
-        }
-
-        static Color GetColor(ConfigNode node, string key, Color fallback)
-        {
-            if (!node.HasValue(key))
-            {
-                Debug.LogWarning("[GalacticDisk] Key " + key + " in node " + node.name + " does not exist, using fallback.");
-                return fallback;
-            }
-
-            string[] parts = node.GetValue(key).Split(',');
-            if (parts.Length < 3)
-                return fallback;
-
-            try
-            {
-                float r = float.Parse(parts[0].Trim(), CultureInfo.InvariantCulture);
-                float g = float.Parse(parts[1].Trim(), CultureInfo.InvariantCulture);
-                float b = float.Parse(parts[2].Trim(), CultureInfo.InvariantCulture);
-                float a = parts.Length >= 4 ? float.Parse(parts[3].Trim(), CultureInfo.InvariantCulture) : 1f;
-
-                return new Color(r, g, b, a);
-            }
-            catch
-            {
-                return fallback;
-            }
-        }
-        static bool GetBool(ConfigNode node, string key, bool fallback)
-        {
-            if (node.HasValue(key) && bool.TryParse(node.GetValue(key), out bool result))
-                return result;
-            return fallback;
-        }
-    }
-
-    // Updates the disk on runtime when it gets cleared by KSP
-    // Runs after every default-order component's LateUpdate, including whatever
-    // updates the parent celestial body's own rotation each frame. Without this,
-    // Transform.rotation below computes a local rotation relative to the parent's
-    // rotation AT THAT INSTANT — if the parent's own rotation script then runs
-    // afterward in the same frame (unguaranteed ordering otherwise), the parent
-    // keeps moving after we've already locked in our local offset, leaving a
-    // visible per-frame drift that scales with the parent's spin rate — i.e.
-    // exactly the timewarp-scaled spinning being reported. Running last removes
-    // the race entirely: by the time we set our rotation, the parent has already
-    // finished moving for this frame.
-    [DefaultExecutionOrder(32000)]
-    public class GalacticDiskObject : MonoBehaviour
-    {
-        public ParticleSystem.Particle[] particles;
-        public ParticleSystem ps;
-        public ParticleSystemRenderer psR;
-        public Material material;
-        public GalaxyConfig config;
-        public GameObject renderRoot;
-        public VolumetricDiskRenderer volume;
-        public Texture2D ownedTexture;
-
-        public void ReleaseRenderer()
-        {
-            renderRoot?.SetActive(false);
-            volume?.DisposeResources();
-            Release(renderRoot); Release(material); Release(ownedTexture);
-            renderRoot = null; volume = null; ps = null; psR = null;
-            material = null; ownedTexture = null; particles = null;
-        }
-        public static void Release(UnityEngine.Object obj)
-        {
-            if (obj == null) return;
-            if (Application.isPlaying) Destroy(obj); else DestroyImmediate(obj);
-        }
-        private void OnDestroy() { ReleaseRenderer(); }
-
-        // The CelestialBody the disk is centered on — its orbit (around whatever
-        // referenceBody its Orbit node names) defines the plane to align to when
-        // config.alignRotationToOrbit is set.
-        public CelestialBody orbitBody;
-
-        // Checking for a KSP-triggered particle clear every single frame, forever,
-        // is wasted work once a disk has been sitting fully spawned for a while —
-        // across several million-particle disks that adds up. Throttle the check
-        // instead of skipping it entirely, since KSP can still clear particles
-        // later (e.g. on some scene transitions) and this needs to catch that.
-        private int framesSinceCheck = 0;
-        private const int checkIntervalFrames = 30; // ~2x/sec at 60fps
-
-        public void Update()
-        {
-            if (config == null) return;
-            framesSinceCheck++;
-            if (framesSinceCheck < checkIntervalFrames) return;
-            framesSinceCheck = 0;
-            if (renderRoot == null || !renderRoot.activeSelf ||
-                (config.renderMode == DiskRenderMode.Volumetric && (volume == null || !volume.IsReady)))
-            {
-                try { GalacticDiskGenerator.RegenerateDisk(gameObject, config); }
-                catch (Exception ex) { Debug.LogError("[GalacticDisk] Renderer recovery failed: " + ex); }
-                return;
-            }
-            if (config.renderMode == DiskRenderMode.Volumetric) return;
-            if (ps == null || psR == null) { GalacticDiskGenerator.RegenerateDisk(gameObject, config); return; }
-            var emission = ps.emission;
-            if ((config.starCount > 0 && ps.particleCount == 0) || emission.enabled) UpdateDisk();
-        }
-
-        // Runs after Update() on every component this frame, so it overrides
-        // whatever rotation the disk picked up by inheriting from its parent
-        // scaled-space body this frame (the parent's own spin is presumably
-        // applied in its own Update()). Setting transform.rotation (not
-        // localRotation) sets WORLD rotation directly, ignoring the parent's
-        // current rotation entirely — so this works regardless of how fast, or
-        // around which axis, the parent body happens to be spinning.
-        public void LateUpdate()
-        {
-            if (config == null) return;
-            transform.localScale = Vector3.one;
-            if (config.renderMode == DiskRenderMode.Particles && renderRoot != null)
-                renderRoot.transform.localScale = Vector3.one * (config.objectScale * config.renderScale);
-            // Optional slow self-rotation. Using Planetarium.GetUniversalTime()
-            // (KSP's authoritative simulated clock, already correctly scaled for
-            // timewarp/pausing) rather than accumulating Time.deltaTime each frame
-            // means this is computed fresh from absolute time every call — there's
-            // nothing to drift or to desync at high warp, and no dependency on
-            // frame rate.
-            float spinDegrees = 0f;
-            if (config.rotationPeriod > 0f)
-            {
-                double phase = (Planetarium.GetUniversalTime() / config.rotationPeriod) % 1.0;
-                spinDegrees = (float)(phase * 360.0);
-            }
-
-            if (config.alignRotationToOrbit && orbitBody != null && orbitBody.orbit != null)
-            {
-                // KSP's Orbit class computes its vectors (normal, position, velocity)
-                // in a coordinate frame where Unity's Y and Z axes are swapped
-                // relative to Transform/world space — a known gotcha when mixing
-                // Orbit math with Unity Transforms directly. Swapping here is what
-                // makes the computed plane match the orbit actually drawn in-game,
-                // instead of the mismatched planes seen when guessing plain XYZ
-                // Euler angles from the raw orbital elements.
-                Vector3 normal = orbitBody.orbit.GetOrbitNormal();
-                normal = new Vector3(normal.x, normal.z, normal.y).normalized;
-
-                // Disk particles are laid out flat in the local XZ plane (Y is the
-                // disk's "thin" axis), so align local up to the orbit normal, then
-                // apply rotationY (+ any rotationPeriod spin) as rotation around
-                // that normal (which arm points where — doesn't affect the plane).
-                Quaternion align = Quaternion.FromToRotation(Vector3.up, normal);
-                transform.rotation = config.spinAroundDiskAxis ?
-                    Quaternion.AngleAxis(config.rotationY, Vector3.up) * align * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
-                    align * Quaternion.Euler(0f, config.rotationY + spinDegrees, 0f);
-            }
-            else
-            {
-                transform.rotation = config.spinAroundDiskAxis ?
-                    Quaternion.Euler(config.rotationX, config.rotationY, config.rotationZ) * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
-                    Quaternion.Euler(config.rotationX, config.rotationY + spinDegrees, config.rotationZ);
-            }
-            volume?.UpdateMatrices();
-        }
-
-        public void UpdateDisk()  // It is not recommended to call this since it doesn't reset the particles, better change values and reset the particle system
-        {
-            if (config == null || config.renderMode != DiskRenderMode.Particles || ps == null || psR == null) return;
-            ParticleSystem.EmissionModule emission = ps.emission;
-            ParticleSystem.MainModule main = ps.main;
-
-            psR.sharedMaterial = material;
-            main.maxParticles = config.starCount;
-            main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
-            main.simulationSpace = ParticleSystemSimulationSpace.Local;
-            main.scalingMode = ParticleSystemScalingMode.Local;
-            main.loop = false;
-            main.playOnAwake = false;
-            emission.enabled = false;
-
-            // KSP appears to reset the transform scale along with clearing the
-            // particle system, so it's reapplied here alongside the particles.
-            transform.localScale = Vector3.one;
-            renderRoot.transform.localScale = Vector3.one * (config.objectScale * config.renderScale);
-
-            ps.Play(true); ps.Pause(true);
-            ps.SetParticles(particles, particles.Length);
-            Debug.Log($"[GalacticDisk] Re-generated {ps.particleCount} stars at \"{ps.gameObject.name}\".");
-        }
-    }
-
-    // Simple GUI toolbar window that lets the user edit the GalaxyConfig values
-    // and apply/preview the changes on all generated disks.
-    public class GalacticDiskToolbar
-    {
-        private bool showWindow = false;
-        private Rect windowRect = new Rect(20, 20, 560, 560);
-
-        // Index into FlightGlobals.Bodies of the currently selected preview/remove target.
-        // Not sorted in any way — just whatever order the game currently has them loaded in.
-        private int selectedBodyIndex = 0;
-
-        // The editable draft is saved to text independently of applying the disk.
-        private string configText = "";
-        private bool configInitialized;
-        private string lastConfigText, lastFieldFingerprint;
-        private ConfigEditorResult textValidation, fieldValidation;
-        private readonly List<string> editorErrors = new List<string>();
-        private readonly List<string> editorWarnings = new List<string>();
-        private Vector2 diagnosticsScroll;
-        private string operationMessage = "";
-        private DiskRenderMode renderMode = DiskRenderMode.Particles;
-        private bool isRing;
-        private string innerRingRadius = "0";
-        private GalaxySettings volumeFields = new GalaxySettings();
-        private readonly Dictionary<string, string> volumeInputs = new Dictionary<string, string>();
-        private bool showVolumeOptions = false;
-        private Vector2 configScroll = Vector2.zero;
-
-        // Scroll position for the collapsible field area, so the window itself
-        // can stay a fixed, small size regardless of how many sections are open.
-        private Vector2 fieldsScroll = Vector2.zero;
-
-        // Editable fields (kept as plain primitives so GUILayout.TextField parsing works).
-        private string starCount = "50000";
-        private string galaxyRadius = "100";
-        private string diskThickness = "2";
-        private string minStarSize = "0.015";
-        private string maxStarSize = "0.09";
-
-        private string armCount = "4";
-        private string armTightness = "4";
-        private string armWidth = "0.25";
-        private string interarmFraction = "0.25";
-        private string armConcentration = "0.35";
-
-        private string bulgeFraction = "0.15";
-        private string bulgeScaleX = "15", bulgeScaleY = "2.25", bulgeScaleZ = "15";
-
-        private string colorBulgeR = "1.0", colorBulgeG = "0.92", colorBulgeB = "0.65", colorBulgeA = "1.0";
-        private string colorArmsR = "1.0", colorArmsG = "0.92", colorArmsB = "0.65", colorArmsA = "1.0";
-        private string colorInterarmR = "0.45", colorInterarmG = "0.65", colorInterarmB = "1.0", colorInterarmA = "1.0";
-
-        private string armHighlightColorR = "1.0", armHighlightColorG = "0.55", armHighlightColorB = "0.6", armHighlightColorA = "1.0";
-        private string armHighlightChance = "0";
-
-        private string rotationX = "0", rotationY = "0", rotationZ = "0";
-        private bool alignRotationToOrbit = false;
-        private bool spinAroundDiskAxis = false;
-        private string rotationPeriod = "0";
-        private string diskScaleLengthFraction = "0.25";
-
-        private string objectScale = "1";
-        private string renderScale = "1";
-        private bool usesTexture;
-        private string texturePath = "";
-
-        // Whether each section is expanded, so the window can be collapsed down
-        // to fit smaller screens instead of always showing every field at once.
-        private bool showBasic = true;
-        private bool showArms = false;
-        private bool showBulge = false;
-        private bool showColors = false;
-        private bool showRotation = false;
-        private bool showScale = false;
-
-        // Called from GalacticDiskGenerator.OnGUI() every frame; only draws the
-        // window while the toolbar button has it toggled on.
-        public void OnClick()
-        {
-            if (!showWindow) return;
-
-            windowRect = GUILayout.Window(985123, windowRect, DrawWindow, "Galactic Disk Config");
-        }
-
-        public bool IsVisible => showWindow;
-
-        public void SetVisible(bool visible)
-        {
-            showWindow = visible;
-        }
-
-        private static bool IsUsableScene()
-        {
-            return HighLogic.LoadedScene == GameScenes.SPACECENTER
-                || HighLogic.LoadedScene == GameScenes.FLIGHT
-                || HighLogic.LoadedScene == GameScenes.TRACKSTATION;
-        }
-
-        private const float LabelWidth = 140f;
-
-        private static string LabeledField(string label, string value, float width = LabelWidth)
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(width));
-            string result = GUILayout.TextField(value);
-            GUILayout.EndHorizontal();
-            return result;
-        }
-
-        // A clickable section header that toggles a bool — used to fold groups
-        // of fields away so the window doesn't have to show everything at once.
-        private static bool Foldout(string label, bool expanded)
-        {
-            string arrow = expanded ? "\u25bc " : "\u25b6 ";
-            if (GUILayout.Button(arrow + label, GUILayout.Height(22f)))
-                expanded = !expanded;
-            return expanded;
-        }
-
-        private void DrawWindow(int id)
-        {
-            GUILayout.BeginVertical();
-
-            if (!IsUsableScene())
-            {
-                GUILayout.Label("Galactic Disk config is only available in the Space Center, Flight, or Tracking Station scenes.");
-                GUILayout.EndVertical();
-                GUI.DragWindow();
-                return;
-            }
-
-            EnsureConfigText();
-            GUILayout.Label(isRing ? "Ring Config (edit values here)" : "Galaxy Config (edit values here)", GUILayout.Height(20f));
-            isRing = GUILayout.Toolbar(isRing ? 1 : 0, new[] { "Galaxy", "Ring" }) == 1;
-            renderMode = (DiskRenderMode)GUILayout.Toolbar((int)renderMode, new[] { "Particles", "Volumetric" });
-            if (!isRing && renderMode == DiskRenderMode.Volumetric && GUILayout.Button("Load Milky Way preset into fields"))
-            {
-                RefreshEditorDiagnostics();
-                if (fieldValidation.IsValid)
-                {
-                    GalaxyConfig preset = fieldValidation.config;
-                    VolumeConfig.ApplyMilkyWayPreset(preset);
-                    PopulateFieldsFromConfig(preset);
-                }
-                else operationMessage = "Error: fix the field errors before loading a preset.";
-            }
-
-            GUILayout.Space(10f);
-            GUILayout.Label("Text edits update fields. Save to config copies fields into the text.");
-            GUILayout.Label("Apply rebuilds from the fields. Save the .cfg file manually.");
-
-            fieldsScroll = GUILayout.BeginScrollView(fieldsScroll, GUILayout.Height(Mathf.Clamp(Screen.height - 540f, 80f, 240f)));
-
-            GUILayout.Space(10f);
-            showBasic = Foldout("Basic", showBasic);
-            if (showBasic)
-            {
-                starCount = LabeledField(isRing ? "Particle count" : "Star count", starCount);
-                if (isRing) innerRingRadius = LabeledField("Inner ring radius", innerRingRadius);
-                galaxyRadius = LabeledField(isRing ? "Ring radius" : "Galaxy radius", galaxyRadius);
-                diskThickness = LabeledField(isRing ? "Ring thickness" : "Disk thickness", diskThickness);
-                minStarSize = LabeledField(isRing ? "Min particle size" : "Min star size", minStarSize);
-                maxStarSize = LabeledField(isRing ? "Max particle size" : "Max star size", maxStarSize);
-                diskScaleLengthFraction = LabeledField("Falloff fraction", diskScaleLengthFraction);
-            }
-
-            if (!isRing)
-            {
-                showArms = Foldout("Arms", showArms);
-                if (showArms)
-                {
-                    armCount = LabeledField("Arm count", armCount);
-                    armTightness = LabeledField("Arm tightness", armTightness);
-                    armWidth = LabeledField("Arm width", armWidth);
-                    interarmFraction = LabeledField("Interarm fraction", interarmFraction);
-                    armConcentration = LabeledField("Arm concentration", armConcentration);
-                }
-
-                showBulge = Foldout("Bulge", showBulge);
-                if (showBulge)
-                {
-                    bulgeFraction = LabeledField("Bulge fraction", bulgeFraction);
-                    bulgeScaleX = LabeledField("Bulge scale X", bulgeScaleX);
-                    bulgeScaleY = LabeledField("Bulge scale Y", bulgeScaleY);
-                    bulgeScaleZ = LabeledField("Bulge scale Z", bulgeScaleZ);
-                }
-            }
-
-            showColors = Foldout("Colors", showColors);
-            if (showColors)
-            {
-                if (isRing)
-                {
-                    colorInterarmR = LabeledField("Ring color R", colorInterarmR);
-                    colorInterarmG = LabeledField("Ring color G", colorInterarmG);
-                    colorInterarmB = LabeledField("Ring color B", colorInterarmB);
-                    colorInterarmA = LabeledField("Ring opacity A", colorInterarmA);
-                }
-                else
-                {
-                    colorBulgeR = LabeledField("Bulge color R", colorBulgeR);
-                    colorBulgeG = LabeledField("Bulge color G", colorBulgeG);
-                    colorBulgeB = LabeledField("Bulge color B", colorBulgeB);
-                    colorBulgeA = LabeledField("Bulge opacity A", colorBulgeA);
-
-                    GUILayout.Space(6f);
-                    colorArmsR = LabeledField("Arms color R", colorArmsR);
-                    colorArmsG = LabeledField("Arms color G", colorArmsG);
-                    colorArmsB = LabeledField("Arms color B", colorArmsB);
-                    colorArmsA = LabeledField("Arms opacity A", colorArmsA);
-
-                    GUILayout.Space(6f);
-                    colorInterarmR = LabeledField("Interarm color R", colorInterarmR);
-                    colorInterarmG = LabeledField("Interarm color G", colorInterarmG);
-                    colorInterarmB = LabeledField("Interarm color B", colorInterarmB);
-                    colorInterarmA = LabeledField("Interarm opacity A", colorInterarmA);
-
-                    GUILayout.Space(6f);
-                    armHighlightColorR = LabeledField("Highlight color R", armHighlightColorR);
-                    armHighlightColorG = LabeledField("Highlight color G", armHighlightColorG);
-                    armHighlightColorB = LabeledField("Highlight color B", armHighlightColorB);
-                    armHighlightColorA = LabeledField("Highlight opacity A", armHighlightColorA);
-                    armHighlightChance = LabeledField("Highlight chance", armHighlightChance);
-                }
-            }
-
-            showVolumeOptions = Foldout(isRing ? "Particles, fog and dust" : "Volume, dust, nebulae and bar", showVolumeOptions);
-            if (showVolumeOptions) DrawVolumeFields();
-
-            showRotation = Foldout("Rotation", showRotation);
-            if (showRotation)
-            {
-                alignRotationToOrbit = GUILayout.Toggle(alignRotationToOrbit, " Align rotation to planet's orbit plane");
-
-                GUI.enabled = !alignRotationToOrbit;
-                rotationX = LabeledField("Rotation X", rotationX);
-                GUI.enabled = true;
-                rotationY = LabeledField("Rotation Y", rotationY);
-                GUI.enabled = !alignRotationToOrbit;
-                rotationZ = LabeledField("Rotation Z", rotationZ);
-                GUI.enabled = true;
-                if (alignRotationToOrbit)
-                    GUILayout.Label("(X/Z ignored while aligned; Y still applies as spin)");
-
-                GUILayout.Space(6f);
-                rotationPeriod = LabeledField("Rotation period (s)", rotationPeriod);
-                spinAroundDiskAxis = GUILayout.Toggle(spinAroundDiskAxis, " Spin around the disk's tilted axis");
-                GUILayout.Label("(Seconds per full spin, on top of Rotation Y. 0 = no spin. Supports");
-                GUILayout.Label("scientific notation, e.g. 6.3E+7 for a year.)");
-            }
-
-            showScale = Foldout("Scale", showScale);
-            if (showScale)
-            {
-                objectScale = LabeledField("Object scale", objectScale);
-                renderScale = LabeledField("Render scale", renderScale);
-            }
-            if (renderMode == DiskRenderMode.Particles)
-            {
-                usesTexture = GUILayout.Toggle(usesTexture, " Use custom particle texture");
-                if (usesTexture) texturePath = LabeledField("Texture path", texturePath);
-            }
-
-            GUILayout.EndScrollView();
-
-            GUILayout.Space(10f);
-
-            // Body selector — cycles through whatever bodies are currently loaded,
-            // in whatever order FlightGlobals.Bodies happens to have them in.
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("<", GUILayout.Width(30f)))
-            {
-                CycleBody(-1);
-            }
-            GUILayout.Label(GetSelectedBody()?.name ?? "(no bodies loaded)");
-            if (GUILayout.Button(">", GUILayout.Width(30f)))
-            {
-                CycleBody(1);
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(10f);
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Save to config"))
-            {
-                SaveToConfig();
-            }
-            if (GUILayout.Button("Load"))
-            {
-                LoadSelectedDisk();
-            }
-            if (GUILayout.Button("Apply"))
-            {
-                Apply();
-            }
-            GUILayout.EndHorizontal();
-
-            if (GUILayout.Button("Remove disks on selected body"))
-            {
-                RemoveDisks();
-            }
-
-            GUILayout.Space(10f);
-            RefreshEditorDiagnostics();
-            DrawEditorDiagnostics();
-            configScroll = GUILayout.BeginScrollView(configScroll, GUILayout.Height(160f));
-            string edited = GUILayout.TextArea(configText, GUILayout.MinHeight(150f));
-            if (edited != configText) EditConfigText(edited);
-            GUILayout.EndScrollView();
-
-            GUILayout.EndVertical();
-
-            GUI.DragWindow();
-        }
-
-        private void DrawVolumeFields()
-        {
-            foreach (var field in VolumeConfig.OptionFields)
-            {
-                if (isRing && !RingConfig.IsVolumeOption(field.Name)) continue;
-                var headers = field.GetCustomAttributes(typeof(HeaderAttribute), false);
-                if (headers.Length > 0) { GUILayout.Space(8f); GUILayout.Label(((HeaderAttribute)headers[0]).header); }
-                if (!volumeInputs.TryGetValue(field.Name, out string value)) value = VolumeConfig.Format(field.GetValue(volumeFields));
-                string name = isRing ? RingConfig.OptionName(field.Name) : field.Name;
-                string label = System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
-                if (field.FieldType == typeof(bool))
-                {
-                    bool.TryParse(value, out bool enabled);
-                    value = GUILayout.Toggle(enabled, label) ? "true" : "false";
-                }
-                else value = LabeledField(label, value, 220f);
-                volumeInputs[field.Name] = value;
-            }
-            GUILayout.Label("Colors accept R, G, B or R, G, B, A. Missing alpha = 1.");
-        }
-
-        private CelestialBody GetSelectedBody()
-        {
-            List<CelestialBody> bodies = FlightGlobals.Bodies;
-            if (bodies == null || bodies.Count == 0) return null;
-
-            if (selectedBodyIndex < 0) selectedBodyIndex = 0;
-            if (selectedBodyIndex >= bodies.Count) selectedBodyIndex = bodies.Count - 1;
-
-            return bodies[selectedBodyIndex];
-        }
-
-        private void CycleBody(int direction)
-        {
-            List<CelestialBody> bodies = FlightGlobals.Bodies;
-            if (bodies == null || bodies.Count == 0) return;
-
-            selectedBodyIndex = (selectedBodyIndex + direction + bodies.Count) % bodies.Count;
-        }
-
-        private Dictionary<string, string> CaptureFieldValues()
-        {
-            var values = new Dictionary<string, string>(StringComparer.Ordinal);
-            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-            foreach (var entry in ConfigEditor.Schema(isRing))
-            {
-                if (entry.Key == "color1" || entry.Key == "color2" || entry.Key == "bulgeRadius") continue;
-                if (entry.Key == "planet") { values[entry.Key] = GetSelectedBody()?.name ?? ""; continue; }
-                string shared = isRing ? RingConfig.SharedFieldName(entry.Key) : entry.Key;
-                if (entry.Key == "renderMode") shared = "renderMode";
-                if (shared != null && typeof(GalaxyConfig).GetField(shared) != null && entry.Value == typeof(Color))
-                {
-                    var components = new List<string>();
-                    foreach (string suffix in new[] { "R", "G", "B", "A" })
-                        components.Add((string)GetType().GetField(shared + suffix, flags).GetValue(this));
-                    values[entry.Key] = string.Join(", ", components.ToArray());
-                }
-                else
-                {
-                    var field = shared == null ? null : GetType().GetField(shared, flags);
-                    if (field != null) values[entry.Key] = VolumeConfig.Format(field.GetValue(this));
-                    else
-                    {
-                        string option = entry.Key == "particleBrightness" ? "starBrightness" : entry.Key;
-                        values[entry.Key] = volumeInputs.TryGetValue(option, out string raw) ? raw :
-                            VolumeConfig.Format(typeof(GalaxySettings).GetField(option).GetValue(volumeFields));
-                    }
-                }
-            }
-            return values;
-        }
-
-        private GalaxyConfig BuildConfigFromFields()
-        {
-            ConfigEditorResult result = ConfigEditor.ReadValues(isRing, CaptureFieldValues(), false);
-            if (!result.IsValid) throw new FormatException(string.Join("\n", result.errors.ToArray()));
-            return result.config;
-        }
-
-        private void EnsureConfigText()
-        {
-            if (configInitialized) return;
-            configInitialized = true;
-            var text = new System.Text.StringBuilder((isRing ? RingConfig.NodeName : "GalacticDiskDefinition") + "\n{\n");
-            foreach (var entry in CaptureFieldValues())
-                text.Append("    ").Append(entry.Key).Append(" = ").Append(entry.Value).Append('\n');
-            configText = text.Append('}').ToString();
-        }
-
-        private void EditConfigText(string edited)
-        {
-            configInitialized = true;
-            configText = edited;
-            operationMessage = "";
-            textValidation = ConfigEditor.Read(configText);
-            lastConfigText = configText;
-            if (textValidation.IsValid)
-            {
-                int index = FlightGlobals.Bodies.FindIndex(body => body != null && body.name == textValidation.config.planet);
-                if (index >= 0) selectedBodyIndex = index;
-                PopulateFieldsFromConfig(textValidation.config);
-            }
-            lastFieldFingerprint = null;
-            RefreshEditorDiagnostics();
-        }
-
-        private bool SaveToConfig()
-        {
-            EnsureConfigText();
-            RefreshEditorDiagnostics();
-            if (!fieldValidation.IsValid)
-            {
-                operationMessage = "Error: fields contain invalid values; the config text was preserved.";
-                return false;
-            }
-            configText = GenerateConfigText(fieldValidation.config, GetSelectedBody()?.name ?? "");
-            lastConfigText = null;
-            operationMessage = "Fields saved to the config text. Save the .cfg file manually.";
-            RefreshEditorDiagnostics();
-            return true;
-        }
-
-        private void RefreshEditorDiagnostics()
-        {
-            EnsureConfigText();
-            bool changed = false;
-            if (lastConfigText != configText || textValidation == null)
-            {
-                textValidation = ConfigEditor.Read(configText);
-                lastConfigText = configText; changed = true;
-            }
-            var inputs = CaptureFieldValues();
-            var fingerprint = new System.Text.StringBuilder(isRing ? "Ring\n" : "Galaxy\n");
-            foreach (var entry in inputs) fingerprint.Append(entry.Key).Append('=').Append(entry.Value).Append('\n');
-            string current = fingerprint.ToString();
-            if (lastFieldFingerprint != current || fieldValidation == null)
-            {
-                if (lastFieldFingerprint != null) operationMessage = "";
-                fieldValidation = ConfigEditor.ReadValues(isRing, inputs, true);
-                lastFieldFingerprint = current; changed = true;
-            }
-            if (!changed) return;
-            editorErrors.Clear(); editorWarnings.Clear();
-            foreach (string error in textValidation.errors) editorErrors.Add("Config: " + error);
-            foreach (string error in fieldValidation.errors) editorErrors.Add("Fields: " + error);
-            foreach (string warning in textValidation.warnings) editorWarnings.Add(warning);
-            foreach (string warning in fieldValidation.warnings)
-                if (!editorWarnings.Contains(warning)) editorWarnings.Add(warning);
-            if (textValidation.IsValid && fieldValidation.IsValid)
-                foreach (string difference in ConfigEditor.Differences(fieldValidation.config, textValidation.config))
-                    editorWarnings.Add("Fields/config mismatch: " + difference);
-        }
-
-        private void DrawEditorDiagnostics()
-        {
-            int count = editorErrors.Count + editorWarnings.Count + (operationMessage.Length > 0 ? 1 : 0);
-            diagnosticsScroll = GUILayout.BeginScrollView(diagnosticsScroll, GUILayout.Height(Mathf.Clamp(count * 24f, 24f, 90f)));
-            Color previous = GUI.contentColor;
-            var style = new GUIStyle(GUI.skin.label) { wordWrap = true };
-            if (operationMessage.Length > 0)
-            {
-                GUI.contentColor = operationMessage.StartsWith("Error:") ? new Color(1f, 0.45f, 0.4f) : previous;
-                GUILayout.Label(operationMessage, style);
-            }
-            GUI.contentColor = new Color(1f, 0.45f, 0.4f);
-            foreach (string error in editorErrors) GUILayout.Label("Error: " + error, style);
-            GUI.contentColor = new Color(1f, 0.8f, 0.35f);
-            foreach (string warning in editorWarnings) GUILayout.Label("Warning: " + warning, style);
-            GUI.contentColor = previous;
-            if (count == 0) GUILayout.Label("Fields and config match.", style);
-            GUILayout.EndScrollView();
-        }
-
-        private string GenerateConfigText(GalaxyConfig cfg, string planetName)
-        {
-            if (cfg.isRing) return RingConfig.Export(cfg, planetName);
-            CultureInfo ci = CultureInfo.InvariantCulture;
-
-            return
-                "GalacticDiskDefinition\n" +
-                "{\n" +
-                $"    planet = {planetName}\n" +
-                $"    renderMode = {cfg.renderMode}\n" +
-                $"    starCount = {cfg.starCount.ToString(ci)}\n" +
-                $"    galaxyRadius = {cfg.galaxyRadius.ToString("R", ci)}\n" +
-                $"    diskThickness = {cfg.diskThickness.ToString("R", ci)}\n" +
-                $"    minStarSize = {cfg.minStarSize.ToString("R", ci)}\n" +
-                $"    maxStarSize = {cfg.maxStarSize.ToString("R", ci)}\n" +
-                $"    armCount = {cfg.armCount.ToString(ci)}\n" +
-                $"    armTightness = {cfg.armTightness.ToString("R", ci)}\n" +
-                $"    armWidth = {cfg.armWidth.ToString("R", ci)}\n" +
-                $"    interarmFraction = {cfg.interarmFraction.ToString("R", ci)}\n" +
-                $"    armConcentration = {cfg.armConcentration.ToString("R", ci)}\n" +
-                $"    bulgeFraction = {cfg.bulgeFraction.ToString("R", ci)}\n" +
-                $"    bulgeScaleX = {cfg.bulgeScaleX.ToString("R", ci)}\n" +
-                $"    bulgeScaleY = {cfg.bulgeScaleY.ToString("R", ci)}\n" +
-                $"    bulgeScaleZ = {cfg.bulgeScaleZ.ToString("R", ci)}\n" +
-                $"    colorBulge = {cfg.colorBulge.r.ToString("R", ci)}, {cfg.colorBulge.g.ToString("R", ci)}, {cfg.colorBulge.b.ToString("R", ci)}, {cfg.colorBulge.a.ToString("R", ci)}\n" +
-                $"    colorArms = {cfg.colorArms.r.ToString("R", ci)}, {cfg.colorArms.g.ToString("R", ci)}, {cfg.colorArms.b.ToString("R", ci)}, {cfg.colorArms.a.ToString("R", ci)}\n" +
-                $"    colorInterarm = {cfg.colorInterarm.r.ToString("R", ci)}, {cfg.colorInterarm.g.ToString("R", ci)}, {cfg.colorInterarm.b.ToString("R", ci)}, {cfg.colorInterarm.a.ToString("R", ci)}\n" +
-                $"    armHighlightColor = {cfg.armHighlightColor.r.ToString("R", ci)}, {cfg.armHighlightColor.g.ToString("R", ci)}, {cfg.armHighlightColor.b.ToString("R", ci)}, {cfg.armHighlightColor.a.ToString("R", ci)}\n" +
-                $"    armHighlightChance = {cfg.armHighlightChance.ToString("R", ci)}\n" +
-                $"    rotationX = {cfg.rotationX.ToString("R", ci)}\n" +
-                $"    rotationY = {cfg.rotationY.ToString("R", ci)}\n" +
-                $"    rotationZ = {cfg.rotationZ.ToString("R", ci)}\n" +
-                $"    alignRotationToOrbit = {cfg.alignRotationToOrbit}\n" +
-                $"    rotationPeriod = {cfg.rotationPeriod.ToString("R", ci)}\n" +
-                $"    spinAroundDiskAxis = {VolumeConfig.Format(cfg.spinAroundDiskAxis)}\n" +
-                $"    diskScaleLengthFraction = {cfg.diskScaleLengthFraction.ToString("R", ci)}\n" +
-                $"    objectScale = {cfg.objectScale.ToString("R", ci)}\n" +
-                $"    renderScale = {cfg.renderScale.ToString("R", ci)}\n" +
-                $"    usesTexture = {VolumeConfig.Format(cfg.usesTexture)}\n" +
-                $"    texturePath = {cfg.texturePath}\n" +
-                VolumeConfig.Export(cfg, true) +
-                "}";
-        }
-
-        // Fills every editable field from an existing config — the reverse of
-        // BuildConfigFromFields — so "Load" can pull a disk's current values in
-        // instead of the user re-typing everything from scratch.
-        private void PopulateFieldsFromConfig(GalaxyConfig cfg)
-        {
-            operationMessage = "";
-            lastFieldFingerprint = null;
-            isRing = cfg.isRing;
-            innerRingRadius = cfg.innerRingRadius.ToString("R", CultureInfo.InvariantCulture);
-            renderMode = cfg.renderMode;
-            volumeFields = cfg.volume;
-            volumeInputs.Clear();
-            foreach (var field in VolumeConfig.OptionFields)
-                volumeInputs[field.Name] = VolumeConfig.Format(field.GetValue(volumeFields));
-            CultureInfo ci = CultureInfo.InvariantCulture;
-
-            starCount = cfg.starCount.ToString(ci);
-            galaxyRadius = cfg.galaxyRadius.ToString("R", ci);
-            diskThickness = cfg.diskThickness.ToString("R", ci);
-            minStarSize = cfg.minStarSize.ToString("R", ci);
-            maxStarSize = cfg.maxStarSize.ToString("R", ci);
-
-            armCount = cfg.armCount.ToString(ci);
-            armTightness = cfg.armTightness.ToString("R", ci);
-            armWidth = cfg.armWidth.ToString("R", ci);
-            interarmFraction = cfg.interarmFraction.ToString("R", ci);
-            armConcentration = cfg.armConcentration.ToString("R", ci);
-
-            bulgeFraction = cfg.bulgeFraction.ToString("R", ci);
-            bulgeScaleX = cfg.bulgeScaleX.ToString("R", ci);
-            bulgeScaleY = cfg.bulgeScaleY.ToString("R", ci);
-            bulgeScaleZ = cfg.bulgeScaleZ.ToString("R", ci);
-
-            colorBulgeR = cfg.colorBulge.r.ToString("R", ci);
-            colorBulgeG = cfg.colorBulge.g.ToString("R", ci);
-            colorBulgeB = cfg.colorBulge.b.ToString("R", ci);
-            colorBulgeA = cfg.colorBulge.a.ToString("R", ci);
-
-            colorArmsR = cfg.colorArms.r.ToString("R", ci);
-            colorArmsG = cfg.colorArms.g.ToString("R", ci);
-            colorArmsB = cfg.colorArms.b.ToString("R", ci);
-            colorArmsA = cfg.colorArms.a.ToString("R", ci);
-
-            colorInterarmR = cfg.colorInterarm.r.ToString("R", ci);
-            colorInterarmG = cfg.colorInterarm.g.ToString("R", ci);
-            colorInterarmB = cfg.colorInterarm.b.ToString("R", ci);
-            colorInterarmA = cfg.colorInterarm.a.ToString("R", ci);
-
-            armHighlightColorR = cfg.armHighlightColor.r.ToString("R", ci);
-            armHighlightColorG = cfg.armHighlightColor.g.ToString("R", ci);
-            armHighlightColorB = cfg.armHighlightColor.b.ToString("R", ci);
-            armHighlightColorA = cfg.armHighlightColor.a.ToString("R", ci);
-            armHighlightChance = cfg.armHighlightChance.ToString("R", ci);
-
-            rotationX = cfg.rotationX.ToString("R", ci);
-            rotationY = cfg.rotationY.ToString("R", ci);
-            rotationZ = cfg.rotationZ.ToString("R", ci);
-            alignRotationToOrbit = cfg.alignRotationToOrbit;
-            spinAroundDiskAxis = cfg.spinAroundDiskAxis;
-            rotationPeriod = cfg.rotationPeriod.ToString("R", ci);
-            diskScaleLengthFraction = cfg.diskScaleLengthFraction.ToString("R", ci);
-
-            objectScale = cfg.objectScale.ToString("R", ci);
-            renderScale = cfg.renderScale.ToString("R", ci);
-            usesTexture = cfg.usesTexture;
-            texturePath = cfg.texturePath;
-        }
-
-        // Reads the selected body's currently-applied disk config, if it has one,
-        // into the fields. Does nothing (and leaves fields untouched) if the body
-        // has no disk yet — there's nothing to load in that case.
-        private void LoadSelectedDisk()
-        {
-            CelestialBody body = GetSelectedBody();
-            if (body == null) return;
-
-            GalaxyConfig cfg = GalacticDiskGenerator.GetConfig(body.name);
-            if (cfg == null)
-            {
-                operationMessage = $"Warning: {body.name} has no disk to load. The config text was preserved.";
-                return;
-            }
-
-            PopulateFieldsFromConfig(cfg);
-            configInitialized = true;
-            configText = GenerateConfigText(cfg, body.name);
-            lastConfigText = null;
-            operationMessage = "Loaded the selected disk into the fields and config text.";
-        }
-
-        // Replaces the selected body's disk in place with the current field
-        // values — creates one if it doesn't have one yet. No more temporary
-        // preview objects; this is the real disk, updated live.
-        private void Apply()
-        {
-            CelestialBody body = GetSelectedBody();
-            if (body == null) return;
-
-            RefreshEditorDiagnostics();
-            if (!fieldValidation.IsValid || !textValidation.IsValid)
-            {
-                operationMessage = "Error: fix the field/config errors before applying, or save valid fields to config.";
-                return;
-            }
-            GalaxyConfig cfg = fieldValidation.config;
-            try
-            {
-                GalacticDiskGenerator.ApplyDisk(body, cfg);
-                operationMessage = "Applied the fields to the selected disk.";
-            }
-            catch (Exception ex)
-            {
-                operationMessage = "Error: could not apply disk: " + ex.Message;
-                Debug.LogError("[GalacticDisk] " + ex);
-            }
-        }
-
-        private void RemoveDisks()
-        {
-            CelestialBody body = GetSelectedBody();
-            if (body == null) return;
-
-            GalacticDiskGenerator.RemoveDisk(body.name);
         }
     }
 }

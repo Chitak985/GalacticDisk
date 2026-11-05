@@ -1,8 +1,10 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using UnityEngine;
+using static Targeting;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     /// <summary>
     /// Used in <see cref="ConfigEditor"/> to create ring configs.
@@ -145,19 +147,27 @@ namespace GalacticDisk.Rendering
             config.bulgeScaleX = config.bulgeScaleY = config.bulgeScaleZ = 0f;
             config.colorBulge = config.colorArms = config.armHighlightColor = config.colorInterarm;
             config.armHighlightChance = 0f;
-            config.volume.armCount = 0;
-            config.volume.interarmFraction = 1f;
-            config.volume.bulgeFraction = 0f;
-            config.volume.bulgeScaleX = config.volume.bulgeScaleY = config.volume.bulgeScaleZ = 0f;
-            config.volume.enableBar = false;
-            config.volume.enableStarFormation = false;
-            config.volume.logarithmicArms = false;
-            config.volume.armHighlightChance = 0f;
-            config.volume.dustArmBias = 0f;
-            config.volume.dustLaneStrength = 1f;
-            config.volume.colorBulge = config.volume.colorArms = config.volume.armHighlightColor = config.volume.colorInterarm;
+            Configure(config.volume);
 
             return config;
+        }
+
+        /// <summary>
+        /// Configure volumetric parameters of a <see cref="RingConfig"/>.
+        /// </summary>
+        public static void Configure(GalaxySettings volume)
+        {
+            volume.armCount = 0;
+            volume.interarmFraction = 1f;
+            volume.bulgeFraction = 0f;
+            volume.bulgeScaleX = volume.bulgeScaleY = volume.bulgeScaleZ = 0f;
+            volume.enableBar = false;
+            volume.enableStarFormation = false;
+            volume.logarithmicArms = false;
+            volume.armHighlightChance = 0f;
+            volume.dustArmBias = 0f;
+            volume.dustLaneStrength = 1f;
+            volume.colorBulge = volume.colorArms = volume.armHighlightColor = volume.colorInterarm;
         }
 
         /// <summary>
@@ -179,7 +189,7 @@ namespace GalacticDisk.Rendering
                 text.Append("    ").Append(key).Append(" = ").Append(VolumeConfig.Format(val)).Append('\n');
             }
             // Add volumetric config fields
-            foreach (var field in VolumeConfig.OptionFields)
+            foreach (FieldInfo field in VolumeConfig.OptionFields)
                 if (IsVolumeOption(field.Name))
                     text.Append("    ").Append(OptionName(field.Name)).Append(" = ")
                         .Append(VolumeConfig.Format(field.GetValue(config.volume))).Append('\n');

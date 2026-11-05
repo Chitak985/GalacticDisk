@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using UnityEngine;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     [Serializable]
     public sealed class GalaxySettings

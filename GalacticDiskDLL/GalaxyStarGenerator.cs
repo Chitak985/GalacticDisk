@@ -1,7 +1,6 @@
 using UnityEngine;
-using System;
 
-namespace GalacticDisk.Rendering
+namespace GalacticDisk
 {
     /// <summary>
     /// A star struct used as part of a particle disk/ring.
@@ -25,9 +24,9 @@ namespace GalacticDisk.Rendering
         public static GalaxyStar[] Generate(GalaxySettings settings, GalaxyCloudField cloudField)
         {
             // Get a random generator that uses the specified seed
-            Random random = new Random(settings.seed);
+            System.Random random = new System.Random(settings.seed);
             // The array of stars to return when done
-            GalaxyStar particles = new GalaxyStar[settings.starCount];
+            GalaxyStar[] particles = new GalaxyStar[settings.starCount];
             float scaleLength = settings.galaxyRadius * settings.diskScaleLengthFraction;
             float truncatedCdf = 1f - Mathf.Exp(-settings.galaxyRadius / scaleLength);
 
@@ -121,7 +120,7 @@ namespace GalacticDisk.Rendering
                     color.b = Mathf.Clamp01(color.b + (Next(random) - 0.5f) * 0.06f);
                     // Ignore alpha, shouldn't be randomized
                 }
-                
+
                 // Get star size
                 float size = Mathf.Clamp(
                                  Mathf.Lerp(
@@ -129,7 +128,7 @@ namespace GalacticDisk.Rendering
                                      new Vector2(position.x, position.z).magnitude / settings.galaxyRadius
                                  ) * Mathf.Lerp(0.7f, 1.3f, Next(random)),  // Apply some variation
                                  settings.minStarSize, settings.maxStarSize  // Ensure star is within limits
-                             )
+                             );
 
                 // Create a new star particle with the finished parameters
                 particles[i] = new GalaxyStar
@@ -146,7 +145,7 @@ namespace GalacticDisk.Rendering
         /// Choose the arm to put the star on.
         /// <returns>Chosen arm's index.</returns>
         /// </summary>
-        private static int ChooseArm(Random random, GalaxySettings settings)
+        private static int ChooseArm(System.Random random, GalaxySettings settings)
         {
             float total = 0f;
             for (int i = 0; i < settings.armCount; i++) total += (i & 1) == 0 ? 1f : settings.secondaryArmStrength;
@@ -162,18 +161,18 @@ namespace GalacticDisk.Rendering
         /// <summary>
         /// Get a random float.
         /// </summary>
-        private static float Next(Random random)
+        private static float Next(System.Random random)
             => (float)random.NextDouble();
         /// <summary>
         /// Get a random Gaussian distribution.
         /// </summary>
-        private static float Gaussian(Random random)
+        private static float Gaussian(System.Random random)
             => Mathf.Sqrt(-2f * Mathf.Log(Mathf.Max(0.000001f, Next(random)))) *
                 Mathf.Cos(2f * Mathf.PI * Next(random));
         /// <summary>
         /// Get a random Gaussian distribution within [-3.5,3.5].
         /// </summary>
-        private static float BoundedGaussian(Random random)
+        private static float BoundedGaussian(System.Random random)
             => Mathf.Clamp(Gaussian(random), -3.5f, 3.5f);
     }
 }
