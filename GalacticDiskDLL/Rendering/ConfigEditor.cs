@@ -59,14 +59,14 @@ namespace GalacticDisk.Rendering
             StringBuilder segment = new StringBuilder();
             int line = 1, segmentLine = 1;
             bool quoted = false;
-            
-            Action flush = () =>
+
+            void flush()
             {
                 string token = segment.ToString().Trim();
                 if (token.Length > 0)
-                    tokens.Add(new KeyValuePair<int,string>(segmentLine, token));
+                    tokens.Add(new KeyValuePair<int, string>(segmentLine, token));
                 segment.Length = 0;
-            };
+            }
             for (int i = 0; i < (text ?? "").Length; i++)
             {
                 char c = text[i];
@@ -165,36 +165,32 @@ namespace GalacticDisk.Rendering
             Dictionary<string, int> lines = null)
         {
             ConfigEditorResult result = new ConfigEditorResult();
-            Schema schema = Schema(ring);
+            Dictionary<string, Type> schema = Schema(ring);
             ConfigNode node = new ConfigNode(ring ? RingConfig.NodeName : GalaxyNode);
             
             foreach (var entry in values)
             {
                 string prefix = lines != null && lines.ContainsKey(entry.Key) ? "Line " + lines[entry.Key] + ": " : "";
-                
-                Type type;
-                if (!schema.TryGetValue(entry.Key, out type))
+
+                if (!schema.TryGetValue(entry.Key, out Type type))
                 {
                     result.warnings.Add(prefix + "unknown key '" + entry.Key + "' is ignored and will be removed by Save to config.");
                     continue;
                 }
-                
-                object parsed;
-                if (!TryValue(type, entry.Value, out parsed))
+
+                if (!TryValue(type, entry.Value, out _))
                 {
                     result.errors.Add(prefix + entry.Key + ": expected " + TypeDescription(type) + "; got '" + entry.Value + "'.");
                     continue;
                 }
-                
+
                 node.AddValue(entry.Key, entry.Value);
             }
             if (result.errors.Count > 0) return result;
-            string textureEnabled, texturePath;
-            bool requestedTexture;
-            if (values.TryGetValue("usesTexture", out textureEnabled) && bool.TryParse(textureEnabled, out requestedTexture) && requestedTexture &&
-                (!values.TryGetValue("texturePath", out texturePath) || string.IsNullOrWhiteSpace(texturePath)))
+            if (values.TryGetValue("usesTexture", out string textureEnabled) && bool.TryParse(textureEnabled, out bool requestedTexture) && requestedTexture &&
+                (!values.TryGetValue("texturePath", out string texturePath) || string.IsNullOrWhiteSpace(texturePath)))
                 result.warnings.Add("usesTexture is true but texturePath is empty; the custom texture is disabled and the default texture is used.");
-            
+
             if (!ring)
             {
                 ConfigNode resultingNode = new ConfigNode(GalaxyNode);
@@ -208,8 +204,7 @@ namespace GalacticDisk.Rendering
                 {
                     if (values.ContainsKey(key)) continue;
                     string alias = key == "colorInterarm" ? "color2" : key == "armHighlightColor" ? "" : "color1";
-                    string value;
-                    resultingNode.AddValue(key, values.TryGetValue(alias, out value) ? value : VolumeConfig.Format(typeof(GalaxyConfig).GetField(key).GetValue(defaults)));
+                    resultingNode.AddValue(key, values.TryGetValue(alias, out string value) ? value : VolumeConfig.Format(typeof(GalaxyConfig).GetField(key).GetValue(defaults)));
                 }
                 
                 if (values.ContainsKey("bulgeRadius"))
@@ -244,7 +239,7 @@ namespace GalacticDisk.Rendering
             }
             if (type == typeof(DiskRenderMode))
             {
-                DiskRenderMode mode; bool valid = Enum.TryParse(text, true, out mode) && Enum.IsDefined(typeof(DiskRenderMode), mode);
+                bool valid = Enum.TryParse(text, true, out DiskRenderMode mode) && Enum.IsDefined(typeof(DiskRenderMode), mode);
                 val = mode; return valid;
             }
             return VolumeConfig.TryParse(type, text, out val);
@@ -334,10 +329,6 @@ namespace GalacticDisk.Rendering
         /// Get the string to use for displaying a config value.
         /// </summary>
         private static string Display(object val)
-        {
-            if (val is float)
-                return ((float)val).ToString("R", CultureInfo.InvariantCulture);
-            return VolumeConfig.Format(val);
-        }
+            => val is float v ? v.ToString("R", CultureInfo.InvariantCulture) : VolumeConfig.Format(val);
     }
 }

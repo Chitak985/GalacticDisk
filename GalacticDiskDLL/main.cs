@@ -187,8 +187,7 @@ namespace GalacticDisk
                 HighLogic.LoadedScene != GameScenes.TRACKSTATION) return;
             foreach (var entry in new List<KeyValuePair<string, GalaxyConfig>>(appliedConfigs))
             {
-                GameObject disk;
-                if (disksByPlanet.TryGetValue(entry.Key, out disk) && disk != null) continue;
+                if (disksByPlanet.TryGetValue(entry.Key, out GameObject disk) && disk != null) continue;
                 var body = FlightGlobals.GetBodyByName(entry.Key);
                 if (body?.scaledBody == null) continue;
                 try { ApplyDisk(body, entry.Value); }
@@ -240,8 +239,10 @@ namespace GalacticDisk
                     texture = CreateDefaultParticleTexture();
                     if (config.usesTexture && File.Exists(config.texturePath)) texture.LoadImage(File.ReadAllBytes(config.texturePath));
                     else if (config.usesTexture) Debug.LogWarning("[GalacticDisk] Particle texture not found: " + config.texturePath);
-                    material = new Material(Shader.Find("Sprites/Default"));
-                    material.mainTexture = texture;
+                    material = new Material(Shader.Find("Sprites/Default"))
+                    {
+                        mainTexture = texture
+                    };
                     if (config.isRing)
                     {
                         float brightness = VolumeConfig.SettingsFor(config).starBrightness;
@@ -260,14 +261,14 @@ namespace GalacticDisk
                 owner.ps = ps; owner.psR = renderer; owner.particles = particles;
                 owner.material = material; owner.ownedTexture = texture;
                 go.transform.localScale = Vector3.one;
-                if (volume != null) volume.UpdateMatrices();
+                volume?.UpdateMatrices();
                 Debug.Log("[GalacticDisk] Applied " + config.renderMode + " renderer to " + config.planet +
                     " (" + config.starCount + " stars; objectScale=" + config.objectScale + "; renderScale=" + config.renderScale + ").");
             }
             catch
             {
                 staged.SetActive(false);
-                if (volume != null) volume.DisposeResources();
+                volume?.DisposeResources();
                 GalacticDiskObject.Release(staged); GalacticDiskObject.Release(material); GalacticDiskObject.Release(texture);
                 throw;
             }
@@ -763,8 +764,8 @@ namespace GalacticDisk
 
         public void ReleaseRenderer()
         {
-            if (renderRoot != null) renderRoot.SetActive(false);
-            if (volume != null) volume.DisposeResources();
+            renderRoot?.SetActive(false);
+            volume?.DisposeResources();
             Release(renderRoot); Release(material); Release(ownedTexture);
             renderRoot = null; volume = null; ps = null; psR = null;
             material = null; ownedTexture = null; particles = null;
@@ -861,7 +862,7 @@ namespace GalacticDisk
                     Quaternion.Euler(config.rotationX, config.rotationY, config.rotationZ) * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
                     Quaternion.Euler(config.rotationX, config.rotationY + spinDegrees, config.rotationZ);
             }
-            if (volume != null) volume.UpdateMatrices();
+            volume?.UpdateMatrices();
         }
 
         public void UpdateDisk()  // It is not recommended to call this since it doesn't reset the particles, better change values and reset the particle system
@@ -1213,14 +1214,12 @@ namespace GalacticDisk
                 if (isRing && !RingConfig.IsVolumeOption(field.Name)) continue;
                 var headers = field.GetCustomAttributes(typeof(HeaderAttribute), false);
                 if (headers.Length > 0) { GUILayout.Space(8f); GUILayout.Label(((HeaderAttribute)headers[0]).header); }
-                string value;
-                if (!volumeInputs.TryGetValue(field.Name, out value)) value = VolumeConfig.Format(field.GetValue(volumeFields));
+                if (!volumeInputs.TryGetValue(field.Name, out string value)) value = VolumeConfig.Format(field.GetValue(volumeFields));
                 string name = isRing ? RingConfig.OptionName(field.Name) : field.Name;
                 string label = System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
                 if (field.FieldType == typeof(bool))
                 {
-                    bool enabled;
-                    bool.TryParse(value, out enabled);
+                    bool.TryParse(value, out bool enabled);
                     value = GUILayout.Toggle(enabled, label) ? "true" : "false";
                 }
                 else value = LabeledField(label, value, 220f);
@@ -1272,8 +1271,7 @@ namespace GalacticDisk
                     else
                     {
                         string option = entry.Key == "particleBrightness" ? "starBrightness" : entry.Key;
-                        string raw;
-                        values[entry.Key] = volumeInputs.TryGetValue(option, out raw) ? raw :
+                        values[entry.Key] = volumeInputs.TryGetValue(option, out string raw) ? raw :
                             VolumeConfig.Format(typeof(GalaxySettings).GetField(option).GetValue(volumeFields));
                     }
                 }

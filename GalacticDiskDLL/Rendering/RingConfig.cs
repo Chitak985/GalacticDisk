@@ -46,8 +46,8 @@ namespace GalacticDisk.Rendering
 
         public static GalaxyConfig Read(ConfigNode node)
         {
-            var defaults = new GalaxySettings();
-            var config = new GalaxyConfig { isRing = true, starCount = defaults.starCount,
+            GalaxySettings defaults = new GalaxySettings();
+            GalaxyConfig config = new GalaxyConfig { isRing = true, starCount = defaults.starCount,
                 diskThickness = defaults.diskThickness, minStarSize = defaults.minStarSize,
                 maxStarSize = defaults.maxStarSize, diskScaleLengthFraction = defaults.diskScaleLengthFraction,
                 colorInterarm = defaults.colorArms };
@@ -56,14 +56,16 @@ namespace GalacticDisk.Rendering
                 string key = fields[i, 0];
                 if (!node.HasValue(key)) continue;
                 FieldInfo field = typeof(GalaxyConfig).GetField(fields[i, 1]);
-                object value;
-                if (field.FieldType == typeof(string)) field.SetValue(config, node.GetValue(key));
-                else if (VolumeConfig.TryParse(field.FieldType, node.GetValue(key), out value)) field.SetValue(config, value);
+                if (field.FieldType == typeof(string))
+                    field.SetValue(config, node.GetValue(key));
+                else if (VolumeConfig.TryParse(field.FieldType, node.GetValue(key), out object value))
+                    field.SetValue(config, value);
             }
             VolumeConfig.Read(node, config);
             if (!string.IsNullOrEmpty(config.texturePath))
                 config.texturePath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData", config.texturePath);
-            else config.usesTexture = false;
+            else
+                config.usesTexture = false;
             Normalize(config);
             return config;
         }

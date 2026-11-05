@@ -32,8 +32,7 @@ namespace GalacticDisk.Rendering
                 throw new NotSupportedException("GalacticDisk volumetric rendering requires 3D textures and RGBAHalf support.");
             config = diskConfig;
             settings = VolumeConfig.SettingsFor(config);
-            Shader volumeShader, starShader;
-            GalaxyShaderAssets.Load(out volumeShader, out starShader);
+            GalaxyShaderAssets.Load(out Shader volumeShader, out Shader starShader);
             UpdateMatrices();
             Vector3 extents = VolumeExtents();
             cloudField = GalaxyCloudField.Build(settings, extents);
@@ -61,10 +60,12 @@ namespace GalacticDisk.Rendering
                 cube.bounds = new Bounds(Vector3.zero, Vector3.one * Mathf.Max(1f, config.renderScale));
                 meshes.Add(cube);
                 box.GetComponent<MeshFilter>().sharedMesh = cube;
-                volumeMaterial = new Material(volumeShader);
-                // Galaxy fog is a background layer. Never paint its extinction over
-                // pre-existing particle galaxies from other definitions/mods.
-                volumeMaterial.renderQueue = 2980;
+                volumeMaterial = new Material(volumeShader)
+                {
+                    // Galaxy fog is a background layer. Never paint its extinction over
+                    // pre-existing particle galaxies from other definitions/mods.
+                    renderQueue = 2980
+                };
                 ApplyVolumeSettings(volumeMaterial, extents);
                 volumeMaterial.SetFloat("_Exposure", settings.volumeExposure);
                 Configure(box.GetComponent<MeshRenderer>(), volumeMaterial);
@@ -112,14 +113,20 @@ namespace GalacticDisk.Rendering
                     indices[t] = v; indices[t+1] = v+1; indices[t+2] = v+2;
                     indices[t+3] = v; indices[t+4] = v+2; indices[t+5] = v+3;
                 }
-                var mesh = new Mesh { name = "GalacticDisk stars " + first, indexFormat = IndexFormat.UInt16 };
+                Mesh mesh = new Mesh
+                {
+                    name = "GalacticDisk stars " + first,
+                    indexFormat = IndexFormat.UInt16
+                };
                 meshes.Add(mesh);
                 mesh.vertices = positions; mesh.colors32 = colors; mesh.uv = uv; mesh.uv2 = sizes; mesh.triangles = indices;
                 mesh.bounds = new Bounds(Vector3.zero, (extents * 2f + Vector3.one * settings.maxStarSize * 2f) *
                     Mathf.Max(1f, config.renderScale));
                 mesh.UploadMeshData(true);
-                var batch = new GameObject("Mesh stars " + first);
-                batch.layer = 10;
+                GameObject batch = new GameObject("Mesh stars " + first)
+                {
+                    layer = 10
+                };
                 batch.transform.SetParent(transform, false);
                 batch.AddComponent<MeshFilter>().sharedMesh = mesh;
                 Configure(batch.AddComponent<MeshRenderer>(), starMaterial);

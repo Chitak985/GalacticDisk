@@ -27,8 +27,7 @@ namespace GalacticDisk.Rendering
         {
             if (node.HasValue("renderMode"))
             {
-                DiskRenderMode mode;
-                if (Enum.TryParse(node.GetValue("renderMode"), true, out mode) && Enum.IsDefined(typeof(DiskRenderMode), mode))
+                if (Enum.TryParse(node.GetValue("renderMode"), true, out DiskRenderMode mode) && Enum.IsDefined(typeof(DiskRenderMode), mode))
                     config.renderMode = mode;
                 else Debug.LogWarning("[GalacticDisk] Unknown renderMode; using Particles.");
             }
@@ -36,8 +35,7 @@ namespace GalacticDisk.Rendering
             {
                 if (config.isRing && !RingConfig.IsVolumeOption(field.Name)) continue;
                 string key = config.isRing ? RingConfig.OptionName(field.Name) : field.Name;
-                object value;
-                if (node.HasValue(key) && TryParse(field.FieldType, node.GetValue(key), out value))
+                if (node.HasValue(key) && TryParse(field.FieldType, node.GetValue(key), out object value))
                     field.SetValue(config.volume, value);
             }
         }
@@ -61,10 +59,7 @@ namespace GalacticDisk.Rendering
             config.renderMode = DiskRenderMode.Volumetric;
             config.volume = preset;
             foreach (var field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
-            {
-                var shared = typeof(GalaxyConfig).GetField(field.Name);
-                if (shared != null) shared.SetValue(config, field.GetValue(preset));
-            }
+                (typeof(GalaxyConfig).GetField(field.Name))?.SetValue(config, field.GetValue(preset));
         }
 
         public static string Export(GalaxyConfig config, bool includeInactive = false)
@@ -78,14 +73,14 @@ namespace GalacticDisk.Rendering
 
         public static string Format(object value)
         {
-            if (value is Color)
-            {
-                var color = (Color)value;
+            if (value is Color color)
                 return string.Join(", ", color.r.ToString("R", CultureInfo.InvariantCulture), color.g.ToString("R", CultureInfo.InvariantCulture),
                     color.b.ToString("R", CultureInfo.InvariantCulture), color.a.ToString("R", CultureInfo.InvariantCulture));
-            }
-            if (value is float) return ((float)value).ToString("R", CultureInfo.InvariantCulture);
-            if (value is bool) return (bool)value ? "true" : "false";
+
+            if (value is float v)
+                return v.ToString("R", CultureInfo.InvariantCulture);
+            if (value is bool v1)
+                return v1 ? "true" : "false";
             return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
 
@@ -94,24 +89,31 @@ namespace GalacticDisk.Rendering
             value = null;
             if (type == typeof(bool))
             {
-                bool parsed; if (!bool.TryParse(text, out parsed)) return false; value = parsed;
+                if (!bool.TryParse(text, out bool parsed))
+                    return false;
+                value = parsed;
             }
             else if (type == typeof(int))
             {
-                int parsed; if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed)) return false; value = parsed;
+                if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+                    return false;
+                value = parsed;
             }
             else if (type == typeof(float))
             {
-                float parsed;
-                if (!float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed) ||
-                    float.IsNaN(parsed) || float.IsInfinity(parsed)) return false;
+                if (!float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) ||
+                    float.IsNaN(parsed) || float.IsInfinity(parsed))
+                    return false;
                 value = parsed;
             }
             else if (type == typeof(Color))
             {
-                Color parsed; if (!GalaxySettings.TryParseColor(text, out parsed)) return false; value = parsed;
+                if (!GalaxySettings.TryParseColor(text, out Color parsed))
+                    return false;
+                value = parsed;
             }
-            else return false;
+            else
+                return false;
             return true;
         }
     }

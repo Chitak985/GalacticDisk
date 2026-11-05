@@ -27,14 +27,10 @@ namespace GalacticDisk.Rendering
                 // Ensure it exists
                 if (!File.Exists(path))
                     throw new FileNotFoundException("GalacticDisk volumetric shader bundle is missing: " + path);
-                
+
                 // Get the AssetBundle
-                AssetBundle bundle = AssetBundle.LoadFromFile(path);
-                
-                // Ensure it loaded
-                if (bundle == null)
-                    throw new InvalidOperationException("Cannot load GalacticDisk shader bundle: " + path);
-                
+                AssetBundle bundle = AssetBundle.LoadFromFile(path) ?? throw new InvalidOperationException("Cannot load GalacticDisk shader bundle: " + path);
+
                 // Load shader assets
                 try
                 {
