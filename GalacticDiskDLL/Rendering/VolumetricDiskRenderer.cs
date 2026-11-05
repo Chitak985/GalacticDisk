@@ -5,7 +5,10 @@ using UnityEngine.Rendering;
 
 namespace GalacticDisk.Rendering
 {
-    // Owns meshes, materials, a Texture3D and per-camera drawing commands. No ParticleSystem.
+    /// <summary>
+    /// Renders a volumetric disk or ring using a shader.
+    /// Largely created with an LLM due to the sheer complexity.
+    /// </summary>
     public sealed class VolumetricDiskRenderer : MonoBehaviour
     {
         private readonly List<Mesh> meshes = new List<Mesh>();
@@ -24,7 +27,13 @@ namespace GalacticDisk.Rendering
         private GalaxySettings settings;
         private GalaxyConfig config;
         public int StarCount { get; private set; }
-        public bool IsReady { get { return starMaterial != null && (volumeMaterial != null || (settings != null && !settings.enableVolume)); } }
+        public bool IsReady
+        {
+            get
+            {
+                return starMaterial != null && (volumeMaterial != null || (settings != null && !settings.enableVolume));
+            }
+        }
 
         public void Initialize(GalaxyConfig diskConfig)
         {
@@ -62,8 +71,7 @@ namespace GalacticDisk.Rendering
                 box.GetComponent<MeshFilter>().sharedMesh = cube;
                 volumeMaterial = new Material(volumeShader)
                 {
-                    // Galaxy fog is a background layer. Never paint its extinction over
-                    // pre-existing particle galaxies from other definitions/mods.
+                    // Put shader far into the background
                     renderQueue = 2980
                 };
                 ApplyVolumeSettings(volumeMaterial, extents);
@@ -71,8 +79,9 @@ namespace GalacticDisk.Rendering
                 Configure(box.GetComponent<MeshRenderer>(), volumeMaterial);
             }
             UpdateMatrices();
-            // Prepare already-existing KSP cameras before their render setup begins.
-            foreach (Camera camera in Camera.allCameras) PrepareCamera(camera);
+            // Prepare existing KSP cameras before their render setup begins
+            foreach (Camera camera in Camera.allCameras)
+                PrepareCamera(camera);
         }
 
         private Vector3 VolumeExtents()
@@ -88,7 +97,7 @@ namespace GalacticDisk.Rendering
 
         private void BuildStars(GalaxyStar[] stars, Vector3 extents)
         {
-            const int batchSize = 16000; // Four vertices per star: each batch fits 16-bit indices.
+            const int batchSize = 16000; // Four vertices per star, each batch fits 16-bit indices
             StarCount = stars.Length;
             for (int first = 0; first < stars.Length; first += batchSize)
             {
@@ -133,6 +142,9 @@ namespace GalacticDisk.Rendering
             }
         }
 
+        /// <summary>
+        /// Configure the <see cref="MeshRenderer"/> of the volumetric disk object to function correctly.
+        /// </summary>
         private void Configure(MeshRenderer renderer, Material material)
         {
             renderer.sharedMaterial = material;
@@ -140,8 +152,6 @@ namespace GalacticDisk.Rendering
             renderer.receiveShadows = false;
             renderer.lightProbeUsage = LightProbeUsage.Off;
             renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
-            // Submit explicitly per camera. A MeshRenderer under a distant scaled
-            // body cannot be moved to the floating origin reliably enough for culling.
             renderer.enabled = false;
             renderers.Add(renderer);
         }
@@ -199,12 +209,22 @@ namespace GalacticDisk.Rendering
                     renderer.sharedMaterial, 0, 0, properties);
             }
         }
+        
+        /// <summary>
+        /// Removes any stale camera buffers.
+        /// </summary>
         private void PruneCameraBuffers()
         {
             staleCameras.Clear();
-            foreach (var entry in cameraDraws) if (entry.Key == null) staleCameras.Add(entry.Key);
-            foreach (Camera camera in staleCameras) ReleaseCameraBuffers(camera, cameraDraws[camera]);
+            foreach (var entry in cameraDraws)
+                if (entry.Key == null)
+                    staleCameras.Add(entry.Key);
+            foreach (Camera camera in staleCameras)
+                ReleaseCameraBuffers(camera, cameraDraws[camera]);
         }
+        /// <summary>
+        /// Releases a single camera's buffer.
+        /// </summary>
         private void ReleaseCameraBuffers(Camera camera, CameraDraws draws)
         {
             if (camera != null)
@@ -215,36 +235,36 @@ namespace GalacticDisk.Rendering
             draws.volume.Release(); draws.stars.Release();
             cameraDraws.Remove(camera);
         }
+        /// <summary>
+        /// Releases all camera buffers.
+        /// </summary>
         private void ReleaseCameraBuffers()
         {
             foreach (var entry in cameraDraws)
-            {
-                if (entry.Key != null)
-                {
-                    entry.Key.RemoveCommandBuffer(CameraEvent.BeforeForwardAlpha, entry.Value.volume);
-                    entry.Key.RemoveCommandBuffer(CameraEvent.AfterForwardAlpha, entry.Value.stars);
-                }
-                entry.Value.volume.Release(); entry.Value.stars.Release();
-            }
+                ReleaseCameraBuffers(entry.Key, entry.Value);
             cameraDraws.Clear();
         }
+        
         internal void UpdateMatrices()
         {
             if (config == null || transform.parent == null) return;
-            // Old Local-mode particles did not inherit scaledBody's radius scaling.
-            // Give the volume the same physical objectScale, independently of that radius.
             Matrix4x4 parent = transform.parent.localToWorldMatrix;
-            double sx = Math.Sqrt((double)parent.m00 * parent.m00 + (double)parent.m10 * parent.m10 + (double)parent.m20 * parent.m20);
-            double sy = Math.Sqrt((double)parent.m01 * parent.m01 + (double)parent.m11 * parent.m11 + (double)parent.m21 * parent.m21);
-            double sz = Math.Sqrt((double)parent.m02 * parent.m02 + (double)parent.m12 * parent.m12 + (double)parent.m22 * parent.m22);
-            transform.localScale = new Vector3((float)(1.0 / Math.Max(sx, 1e-30)),
-                (float)(1.0 / Math.Max(sy, 1e-30)), (float)(1.0 / Math.Max(sz, 1e-30)));
+            transform.localScale = new Vector3(
+                (float)(1.0 / Math.Max(Math.Sqrt((double)parent.m00 * parent.m00 + (double)parent.m10 * parent.m10 + (double)parent.m20 * parent.m20), 1e-30)),
+                (float)(1.0 / Math.Max(Math.Sqrt((double)parent.m01 * parent.m01 + (double)parent.m11 * parent.m11 + (double)parent.m21 * parent.m21), 1e-30)),
+                (float)(1.0 / Math.Max(Math.Sqrt((double)parent.m02 * parent.m02 + (double)parent.m12 * parent.m12 + (double)parent.m22 * parent.m22), 1e-30))
+            );
         }
 
+        /// <summary>
+        /// Removes all resources used by the renderer.
+        /// </summary>
         public void DisposeResources()
         {
             ReleaseCameraBuffers();
-            foreach (var renderer in renderers) if (renderer != null) renderer.enabled = false;
+            foreach (var renderer in renderers)
+                if (renderer != null)
+                    renderer.enabled = false;
             renderers.Clear();
             foreach (var mesh in meshes) Release(mesh);
             meshes.Clear();
@@ -253,12 +273,23 @@ namespace GalacticDisk.Rendering
             cloudField = null; volumeMaterial = null; starMaterial = null;
         }
         private void OnDestroy() { DisposeResources(); }
+        /// <summary>
+        /// Release a <see cref="UnityEngine.Object"/> correctly.
+        /// If application is running the object is destroyed,
+        /// but if it isn't then it is destroyed immediately.
+        /// </summary>
         private static void Release(UnityEngine.Object obj)
         {
             if (obj == null) return;
-            if (Application.isPlaying) Destroy(obj); else DestroyImmediate(obj);
+            if (Application.isPlaying)
+                Destroy(obj);
+            else
+                DestroyImmediate(obj);
         }
 
+        /// <summary>
+        /// Set up the volumetric shader material using the loaded <see cref="GalaxySettings"/>.
+        /// </summary>
         private void ApplyVolumeSettings(Material material, Vector3 extents)
         {
             material.SetFloat("_IsRing", settings.isRing ? 1f : 0f);
