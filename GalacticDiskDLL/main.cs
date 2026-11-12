@@ -17,76 +17,75 @@ namespace GalacticDisk
     {
         private static GalacticDiskGenerator instance;
 
-        /// <summary>
-        /// List of all GalacticDisk disks currently loaded.
-        /// </summary>
+        /// <summary> List of all GalacticDisk disks currently loaded. </summary>
         internal static Dictionary<string, GameObject> disksByPlanet = new Dictionary<string, GameObject>();
-        /// <summary>
-        /// List of all GalacticDisk <see cref="GalaxyConfig"/> currently loaded.
-        /// </summary>
+        /// <summary> List of all GalacticDisk <see cref="GalaxyConfig"/> currently loaded. </summary>
         private static readonly Dictionary<string, GalaxyConfig> appliedConfigs = new Dictionary<string, GalaxyConfig>();
-        /// <summary>
-        /// Frames since the last time all GalacticDisks were refreshed.
-        /// </summary>
+        /// <summary> Frames since the last time all GalacticDisks were refreshed. </summary>
         private int recoveryFrames;
 
-        /// <summary>
-        /// <see cref="GalacticDiskToolbar"/> instance for the toolbar window.
-        /// </summary>
+        /// <summary> <see cref="GalacticDiskToolbar"/> instance for the toolbar window. </summary>
         private GalacticDiskToolbar toolbar;
 
-        /// <summary>
-        /// Toolbar button for the GalacticDisk window.
-        /// </summary>
+        /// <summary> Toolbar button for the GalacticDisk window. </summary>
         private ApplicationLauncherButton launcherButton;
 
-        /// <summary>
-        /// Path from GameData to the GalacticDisk icon.
-        /// </summary>
+        /// <summary> Path from GameData to the GalacticDisk icon. </summary>
         private const string IconTexturePath = "GalacticDisk/Icons/toolbar_icon";
 
         public void Start()
         {
+            // Check for duplicate instances
             if (instance != null)
             {
-                Debug.Log($"[GalacticDisk] Duplicate instance {GetInstanceID()} in scene {HighLogic.LoadedScene}, destroying it; keeping original {instance.GetInstanceID()}");
+                Debug.Log($"[GalacticDisk] Duplicate instance {GetInstanceID()} in scene {HighLogic.LoadedScene}, self-destructing. Other instance is {instance.GetInstanceID()}");
                 Destroy(gameObject);
                 return;
             }
 
+            // Set up singleton instance
             instance = this;
             DontDestroyOnLoad(gameObject);
-
+            // Log singleton setup
             Debug.Log($"[GalacticDisk] Start() running in scene {HighLogic.LoadedScene}, instance id {GetInstanceID()}");
 
+            // Load disks
             LoadDefinitions();
+            
+            // Load GUI and set it up
             toolbar = new GalacticDiskToolbar();
             GameEvents.onGUIApplicationLauncherReady.Add(AddLauncherButton);
             GameEvents.onGUIApplicationLauncherDestroyed.Add(RemoveLauncherButton);
         }
 
+        /// <summary> Load all disk definitions </summary>
         internal void LoadDefinitions()
         {
+            // List of definition config nodes
             List<ConfigNode> definitions = new List<ConfigNode>(GameDatabase.Instance.GetConfigNodes("GalacticDiskDefinition"));
             definitions.AddRange(GameDatabase.Instance.GetConfigNodes(RingConfig.NodeName));
+
+            // Load each config node
             foreach (ConfigNode node in definitions)
             {
                 GalaxyConfig config = GalaxyConfig.FromConfigNode(node);
 
+                // Make sure disk has body
                 if (string.IsNullOrEmpty(config.planet))
                 {
                     Debug.LogWarning($"[GalacticDisk] GalacticDiskDefinition node missing planet, skipping.");
                     continue;
                 }
 
+                // Make sure the body exists
                 CelestialBody cBody = FlightGlobals.GetBodyByName(config.planet);
-
                 if (cBody?.scaledBody == null)
                 {
                     Debug.LogWarning("[GalacticDisk] Planet '" + config.planet + "' has no scaled body yet, not initializing disk.");
                     continue;
                 }
 
+                // Create the GalacticDisk disk object
                 GameObject go = new GameObject
                 {
                     name = "GalacticDisk",
@@ -94,6 +93,8 @@ namespace GalacticDisk
                 };
                 go.transform.parent = cBody.scaledBody.transform;
                 go.transform.localPosition = Vector3.zero;
+
+                // Process disk
                 try
                 {
                     ProcessObject(go, config);
@@ -105,6 +106,7 @@ namespace GalacticDisk
                     continue;
                 }
 
+                // Add disk to list of loaded disks
                 disksByPlanet[config.planet] = go; // Remember for UI updates
                 appliedConfigs[config.planet] = config;
             }
@@ -113,11 +115,13 @@ namespace GalacticDisk
 
         public void OnDestroy()
         {
+            // Log singleton destruction
             Debug.Log($"[GalacticDisk] OnDestroy() called on instance id {GetInstanceID()}, scene {HighLogic.LoadedScene}");
 
-            if (instance == this)
-                instance = null;
+            // Remove singleton instance
+            if (instance == this) instance = null;
 
+            // Remove GUI
             GameEvents.onGUIApplicationLauncherReady.Remove(AddLauncherButton);
             GameEvents.onGUIApplicationLauncherDestroyed.Remove(RemoveLauncherButton);
             RemoveLauncherButton();
@@ -158,6 +162,7 @@ namespace GalacticDisk
 
             if (launcherButton == null) return;
 
+            // Remove the launcher button
             try
             {
                 ApplicationLauncher.Instance?.RemoveModApplication(launcherButton);
@@ -179,17 +184,27 @@ namespace GalacticDisk
 
         public void Update()
         {
+            // Throtle update
             if (++recoveryFrames < 60) return;
             recoveryFrames = 0;
+
+            // Make sure GUI is in the right scene
             if (HighLogic.LoadedScene != GameScenes.SPACECENTER &&
                 HighLogic.LoadedScene != GameScenes.FLIGHT &&
                 HighLogic.LoadedScene != GameScenes.TRACKSTATION) return;
+                
+            // Recover each disk
             foreach (KeyValuePair<string, GalaxyConfig> entry
                 in new List<KeyValuePair<string, GalaxyConfig>>(appliedConfigs))
             {
+                // Make sure disk can be recovered
                 if (disksByPlanet.TryGetValue(entry.Key, out GameObject disk) && disk != null) continue;
+                
+                // Make sure disk's body exists
                 CelestialBody body = FlightGlobals.GetBodyByName(entry.Key);
                 if (body?.scaledBody == null) continue;
+
+                // Apply the disk to recover it
                 try
                 {
                     ApplyDisk(body, entry.Value);
@@ -208,10 +223,11 @@ namespace GalacticDisk
 
         /// <summary>
         /// Regenerates a GalacticDisk of the provided <see cref="GameObject"/> with the provided <see cref="GalaxyConfig"/>.
-        /// If this fails no changes are applied and the original disk is left the same.
+        /// If this fails nothing happens and the original disk stays the same.
         /// </summary>
         internal static void RegenerateDisk(GameObject go, GalaxyConfig config)
         {
+            // Verify config values
             if (config == null ||
                 config.starCount < 0 || config.starCount > 2000000 ||
                 !IsPositiveFinite(config.galaxyRadius) ||
@@ -219,31 +235,41 @@ namespace GalacticDisk
                 !IsPositiveFinite(config.renderScale) ||
                 !IsPositiveFinite(config.objectScale * config.renderScale))
                 throw new ArgumentException("Radius/scales must be finite and positive, starCount must be between 0 and 2000000, and/or config is null.");
-            if (config.isRing) VolumeConfig.SettingsFor(config); // Validate before replacing a working renderer
+
+            // Validate before replacing a working renderer
+            if (config.isRing) VolumeConfig.SettingsFor(config);
+
+            // Set up renderer GameObject
             GameObject staged = new GameObject("GalacticDisk Renderer")
             {
                 layer = 10
             };
             go.transform.localScale = Vector3.one;
             staged.transform.SetParent(go.transform, false);
+
+            // Clear resources
             Material material = null;
             Texture2D texture = null;
             VolumetricDiskRenderer volume = null;
             try
             {
+                // Clear particle system values
                 ParticleSystem ps = null;
                 ParticleSystemRenderer renderer = null;
                 ParticleSystem.Particle[] particles = null;
-                if (config.renderMode == DiskRenderMode.Volumetric)
+                
+                // Set up disk
+                if (config.renderMode == DiskRenderMode.Volumetric)  // Set up volumetric disk
                 {
                     volume = staged.AddComponent<VolumetricDiskRenderer>();
                     volume.Initialize(config);
                 }
-                else
+                else  // Set up particle disk
                 {
-                    // Unity's default Local mode ignores ancestor scale. Keep the
-                    // original emitter's scale on the emitter itself, not its parent.
+                    // Apply scale locally to let KSP control the parent scale
                     staged.transform.localScale = Vector3.one * (config.objectScale * config.renderScale);
+
+                    // Set up particle system
                     ps = staged.AddComponent<ParticleSystem>();
                     ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                     ParticleSystem.MainModule main = ps.main;
@@ -251,52 +277,81 @@ namespace GalacticDisk
                     main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
                     main.simulationSpace = ParticleSystemSimulationSpace.Local;
                     main.scalingMode = ParticleSystemScalingMode.Local;
-                    main.loop = false; main.playOnAwake = false; main.startSpeed = 0f;
-                    ParticleSystem.EmissionModule emission = ps.emission; emission.enabled = false;
-                    ParticleSystem.ShapeModule shape = ps.shape; shape.enabled = false;
+                    main.loop = false;
+                    main.playOnAwake = false;
+                    main.startSpeed = 0f;
+                    ParticleSystem.EmissionModule emission = ps.emission;
+                    emission.enabled = false;
+                    ParticleSystem.ShapeModule shape = ps.shape;
+                    shape.enabled = false;
+
+                    // Apply texture if there is one and it exists
                     texture = CreateDefaultParticleTexture();
-                    if (config.usesTexture && File.Exists(config.texturePath)) texture.LoadImage(File.ReadAllBytes(config.texturePath));
-                    else if (config.usesTexture) Debug.LogWarning("[GalacticDisk] Particle texture not found: " + config.texturePath);
+                    if (config.usesTexture && File.Exists(config.texturePath))
+                        texture.LoadImage(File.ReadAllBytes(config.texturePath));
+                    else if (config.usesTexture)
+                        Debug.LogWarning("[GalacticDisk] Particle texture not found: " + config.texturePath);
+
+                    // Create particle system material
                     material = new Material(Shader.Find("Sprites/Default"))
                     {
                         mainTexture = texture
                     };
+
+                    // Adjust everything if disk is a ring
                     if (config.isRing)
                     {
                         float brightness = VolumeConfig.SettingsFor(config).starBrightness;
                         material.color = new Color(brightness, brightness, brightness, 1f);
                     }
+
+                    // Set up particle system renderer
                     renderer = ps.GetComponent<ParticleSystemRenderer>();
                     renderer.sharedMaterial = material;
-                    ps.Simulate(0f, true, true); ps.Play(true); ps.Pause(true);
+                    ps.Simulate(0f, true, true);
+                    ps.Play(true);
+                    ps.Pause(true);
+
+                    // Generate and add particles
                     particles = GenerateGalaxy(ps, config);
                 }
+                
+                // Set up GalacticDisk object
                 GalacticDiskObject owner = go.GetComponent<GalacticDiskObject>() ?? go.AddComponent<GalacticDiskObject>();
                 owner.ReleaseRenderer();
                 owner.config = config;
                 owner.orbitBody = FlightGlobals.GetBodyByName(config.planet);
-                owner.renderRoot = staged; owner.volume = volume;
-                owner.ps = ps; owner.psR = renderer; owner.particles = particles;
-                owner.material = material; owner.ownedTexture = texture;
+                owner.renderRoot = staged;
+                owner.volume = volume;
+                owner.ps = ps;
+                owner.psR = renderer;
+                owner.particles = particles;
+                owner.material = material;
+                owner.ownedTexture = texture;
                 go.transform.localScale = Vector3.one;
+
+                // Update volumetric renderer if it is used
                 volume?.UpdateMatrices();
-                Debug.Log("[GalacticDisk] Applied " + config.renderMode + " renderer to " + config.planet +
-                    " (" + config.starCount + " stars; objectScale=" + config.objectScale + "; renderScale=" + config.renderScale + ").");
+
+                // Log creation
+                Debug.Log($"[GalacticDisk] Applied {config.renderMode} disk renderer to {config.planet} with {config.starCount} stars.");
             }
             catch
             {
+                // Dispose of everything if creation fails
                 staged.SetActive(false);
                 volume?.DisposeResources();
-                GalacticDiskObject.Release(staged); GalacticDiskObject.Release(material); GalacticDiskObject.Release(texture);
+                GalacticDiskObject.Release(staged);
+                GalacticDiskObject.Release(material);
+                GalacticDiskObject.Release(texture);
                 throw;
             }
         }
 
-        private static bool IsPositiveFinite(float value) { return value > 0f && !float.IsNaN(value) && !float.IsInfinity(value); }
+        private static bool IsPositiveFinite(float value)
+            => return value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
 
-        // Reads back the config currently applied to a body's disk, if any — used
-        // by the toolbar's "Load" button so editing an existing disk doesn't
-        // require re-typing every field from scratch.
+        /// <summary> Read the loaded disk config for a body, used by Load in GUI </summary>
         internal static GalaxyConfig GetConfig(string planetName)
         {
             if (string.IsNullOrEmpty(planetName)) return null;
@@ -305,9 +360,7 @@ namespace GalacticDisk
             return go.GetComponent<GalacticDiskObject>()?.config;
         }
 
-        // Creates a disk on the given body if none exists yet, or regenerates the
-        // existing one IN PLACE with the new config otherwise — this replaces the
-        // old separate "temporary preview object" flow entirely.
+        /// <summary> Create or update disk at body with config, used by Apply in GUI </summary>
         internal static void ApplyDisk(CelestialBody body, GalaxyConfig config)
         {
             if (body?.scaledBody == null || instance == null) return;
@@ -342,6 +395,7 @@ namespace GalacticDisk
             appliedConfigs[body.name] = config;
         }
 
+        /// <summary> Remove the loaded disk from a body, used by Remove all disks in GUI </summary>
         internal static void RemoveDisk(string planetName)
         {
             if (string.IsNullOrEmpty(planetName)) return;
@@ -352,23 +406,6 @@ namespace GalacticDisk
                 if (go != null) GalacticDiskObject.Release(go);
                 disksByPlanet.Remove(planetName);
             }
-        }
-
-        // Builds a brand new, untracked disk GameObject parented to the given body's
-        // scaled space transform, for previewing a config without touching disksByPlanet.
-        internal static GameObject CreatePreviewDisk(CelestialBody body, GalaxyConfig config)
-        {
-            if (body?.scaledBody == null) return null;
-
-            GameObject go = new GameObject("GalacticDisk_Preview")
-            {
-                layer = 10
-            };
-            go.transform.parent = body.scaledBody.transform;
-            go.transform.localPosition = Vector3.zero;
-            RegenerateDisk(go, config);
-
-            return go;
         }
 
         static ParticleSystem.Particle[] GenerateGalaxy(ParticleSystem ps, GalaxyConfig c)
@@ -388,9 +425,7 @@ namespace GalacticDisk
                 return particles;
             }
 
-            // Particle positions/sizes are divided by renderScale so that once the
-            // transform's localScale (objectScale * renderScale) is applied on top,
-            // the disk still visually reads as objectScale in size.
+            // Divided by renderScale so it doesn't affect objectScale
             float invRenderScale = 1f / c.renderScale;
 
             for (int i = 0; i < c.starCount; i++)
@@ -422,20 +457,10 @@ namespace GalacticDisk
 
             return particles;
         }
-
-        // Re-declared here because GenerateDiskStar needs an out param and the
-        // interarm blend happens where color is computed, below.
+        
+        /// <summary> Generates a bulge where each axis is an independent Gaussian, making it smooth </summary>
         static Vector3 GenerateBulgeStar(GalaxyConfig c)
-        {
-            // Each axis is an independent Gaussian, so the bulge is a smooth,
-            // no-hard-edge ellipsoid whose extent on each axis is controlled
-            // separately by bulgeScaleX/Y/Z.
-            float x = Gaussian(c.bulgeScaleX);
-            float y = Gaussian(c.bulgeScaleY);
-            float z = Gaussian(c.bulgeScaleZ);
-
-            return new Vector3(x, y, z);
-        }
+            => new Vector3(Gaussian(c.bulgeScaleX), Gaussian(c.bulgeScaleY), Gaussian(c.bulgeScaleZ));
 
         static Vector3 GenerateDiskStar(GalaxyConfig c, out bool isInterarm)
         {
