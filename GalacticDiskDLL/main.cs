@@ -411,7 +411,10 @@ namespace GalacticDisk
         /// <summary> Generate particles for a particle system with the provided <see cref="GalaxyConfig"/> </summary>
         public static ParticleSystem.Particle[] GenerateGalaxy(ParticleSystem ps, GalaxyConfig c)
         {
+            // Particles to output
             ParticleSystem.Particle[] particles = new ParticleSystem.Particle[c.starCount];
+            
+            // Handle ring disk
             if (c.isRing)
             {
                 GalaxyStar[] ring = GalaxyStarGenerator.Generate(VolumeConfig.SettingsFor(c), null);
@@ -429,33 +432,33 @@ namespace GalacticDisk
             // Divided by renderScale so it doesn't affect objectScale
             float invRenderScale = 1f / c.renderScale;
 
+            // Generate all of the stars
             for (int i = 0; i < c.starCount; i++)
             {
                 bool isInterarm = false;
                 bool isBulge = UnityEngine.Random.value < c.bulgeFraction;
+
+                // Get position (and if star is interarm)
                 Vector3 pos = isBulge ? GenerateBulgeStar(c) : GenerateDiskStar(c, out isInterarm);
-                bool isArmStar = !isBulge && !isInterarm;
-
-                float radius = new Vector2(pos.x, pos.z).magnitude;
-                float t = Mathf.Clamp01(radius / c.galaxyRadius);
-
                 particles[i].position = pos * invRenderScale;
 
-                float size =
-                    Mathf.Lerp(0.09f, 0.025f, t)
-                    * UnityEngine.Random.Range(0.8f, 1.2f);
+                // Get star size
+                particles[i].startSize = Mathf.Clamp(
+                                            Mathf.Lerp(0.09f, 0.025f, Mathf.Clamp01(new Vector2(pos.x, pos.z).magnitude / c.galaxyRadius))
+                                                * UnityEngine.Random.Range(0.8f, 1.2f),
+                                            c.minStarSize,
+                                            c.maxStarSize
+                                         ) * invRenderScale;
 
-                size = Mathf.Clamp(size, c.minStarSize, c.maxStarSize);
-                particles[i].startSize = size * invRenderScale;
+                // Get color
+                particles[i].startColor = RandomStarColor(c, isBulge, !isBulge && !isInterarm);
 
-                particles[i].startColor = RandomStarColor(c, isBulge, isArmStar);
-
+                // Keep particle existing forever
                 particles[i].remainingLifetime = float.MaxValue;
                 particles[i].startLifetime = float.MaxValue;
             }
 
             ps.SetParticles(particles, particles.Length);
-
             return particles;
         }
         
@@ -467,18 +470,15 @@ namespace GalacticDisk
         public tatic Vector3 GenerateDiskStar(GalaxyConfig c, out bool isInterarm)
         {
             isInterarm = false;
-            float scaleLength = c.galaxyRadius * c.diskScaleLengthFraction;
 
             float r;
             while (true)
             {
-                r = -scaleLength * Mathf.Log(1f - UnityEngine.Random.value);
-                if (r <= c.galaxyRadius)
-                    break;
+                r = -(c.galaxyRadius * c.diskScaleLengthFraction) * Mathf.Log(1f - UnityEngine.Random.value);
+                if (r <= c.galaxyRadius) break;
             }
 
             float angle;
-
             if (c.armCount <= 0 || UnityEngine.Random.value < c.interarmFraction)
             {
                 isInterarm = true;
@@ -504,19 +504,6 @@ namespace GalacticDisk
             float y = Gaussian(c.diskThickness * 0.22f);
 
             return new Vector3(x, y, z);
-        }
-
-        /// <summary> Get Gaussian distribution for a sigma </summary>
-        public static float Gaussian(float sigma)
-        {
-            float u1 = Mathf.Max(UnityEngine.Random.value, 0.0001f);
-            float u2 = UnityEngine.Random.value;
-
-            float rand =
-                Mathf.Sqrt(-2f * Mathf.Log(u1))
-                * Mathf.Cos(2f * Mathf.PI * u2);
-
-            return rand * sigma;
         }
 
         /// <summary> Get the random star color used by a star depending on where it is in the disk </summary>
@@ -559,6 +546,19 @@ namespace GalacticDisk
 
             tex.Apply();
             return tex;
+        }
+
+        /// <summary> Get Gaussian distribution for a sigma </summary>
+        public static float Gaussian(float sigma)
+        {
+            float u1 = Mathf.Max(UnityEngine.Random.value, 0.0001f);
+            float u2 = UnityEngine.Random.value;
+
+            float rand =
+                Mathf.Sqrt(-2f * Mathf.Log(u1))
+                * Mathf.Cos(2f * Mathf.PI * u2);
+
+            return rand * sigma;
         }
     }
 }
