@@ -4,12 +4,15 @@ using UnityEngine;
 
 namespace GalacticDisk
 {
+    /// <summary> The settings used for galacitc disk/ring </summary>
     [Serializable]
     public sealed class GalaxySettings
     {
-        // Internal shape selection comes from the definition node, not an extra config key.
+        /// <summary> If the true, the disk is a ring. Loaded from the config node name. </summary>
         public bool isRing;
+        /// <summary> Inner radius of the ring disk if it's a ring. </summary>
         public float innerRingRadius;
+        
         [Header("Stars and disk (Unity units)")]
         [Min(0)] public int starCount = 140000;
         [Min(0.01f)] public float galaxyRadius = 100f;
@@ -111,19 +114,20 @@ namespace GalacticDisk
         [Tooltip("Dust samples per star vertex; zero disables individual star attenuation.")]
         [Range(0, 24)] public int starDustSamples = 12;
 
-        public float ArmAngle(float radius)
-        {
-            float r = radius / galaxyRadius;
-            float angle = logarithmicArms ?
-                Mathf.Log(Mathf.Max(r, armStartRadius) / armStartRadius) /
-                    Mathf.Tan(armPitchAngle * Mathf.Deg2Rad) * armTightness :
-                r * armTightness * Mathf.PI * 2f;
-            return angle + (enableBar ? barAngle * Mathf.Deg2Rad : 0f) +
-                armIrregularity * (Mathf.Sin(r * 19f) + 0.5f * Mathf.Sin(r * 47f));
-        }
-
         [Range(0.1f, 4f)] public float volumeExposure = 1.15f;
 
+        /// <summary> Get the arm angle based on radius </summary>
+        public float ArmAngle(float radius)
+            => (
+                    logarithmicArms ?
+                    Mathf.Log(Mathf.Max(radius / galaxyRadius, armStartRadius) / armStartRadius) /
+                    Mathf.Tan(armPitchAngle * Mathf.Deg2Rad) * armTightness :
+                    (radius / galaxyRadius) * armTightness * Mathf.PI * 2f
+                ) + (enableBar ? barAngle * Mathf.Deg2Rad : 0f)
+                  + armIrregularity * (Mathf.Sin((radius / galaxyRadius) * 19f)
+                      + 0.5f * Mathf.Sin((radius / galaxyRadius) * 47f));
+
+        /// <summary> Forcefully validate the values </summary>
         public void Validate()
         {
             starCount = Mathf.Clamp(starCount, 0, 2000000);
@@ -188,13 +192,18 @@ namespace GalacticDisk
             volumeExposure = Mathf.Clamp(volumeExposure, 0.1f, 4f);
         }
 
+        /// <summary> <see cref="Mathf.Clamp01"/> but for <see cref="Color"/> </summary>
         private static Color ClampColor(Color c)
         {
             return new Color(Mathf.Clamp01(c.r), Mathf.Clamp01(c.g),
                 Mathf.Clamp01(c.b), Mathf.Clamp01(c.a));
         }
 
-        /// <summary>Optional helper for existing GalacticDisk RGB or RGBA config values.</summary>
+        /// <summary>
+        /// Parse a color from text.
+        /// <param name="text">The text to parse.</param>
+        /// <returns>Whether the parsing succeeded.</returns>
+        /// </summary>
         public static bool TryParseColor(string text, out Color color)
         {
             color = Color.white;
@@ -206,7 +215,8 @@ namespace GalacticDisk
             {
                 if (!float.TryParse(parts[i].Trim(), NumberStyles.Float,
                     CultureInfo.InvariantCulture, out values[i]) ||
-                    float.IsNaN(values[i]) || float.IsInfinity(values[i])) return false;
+                    float.IsNaN(values[i]) || float.IsInfinity(values[i]))
+                    return false;
             }
             color = new Color(values[0], values[1], values[2], values[3]);
             return true;
