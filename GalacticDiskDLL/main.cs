@@ -408,7 +408,8 @@ namespace GalacticDisk
             }
         }
 
-        static ParticleSystem.Particle[] GenerateGalaxy(ParticleSystem ps, GalaxyConfig c)
+        /// <summary> Generate particles for a particle system with the provided <see cref="GalaxyConfig"/> </summary>
+        public static ParticleSystem.Particle[] GenerateGalaxy(ParticleSystem ps, GalaxyConfig c)
         {
             ParticleSystem.Particle[] particles = new ParticleSystem.Particle[c.starCount];
             if (c.isRing)
@@ -459,10 +460,11 @@ namespace GalacticDisk
         }
         
         /// <summary> Generates a bulge where each axis is an independent Gaussian, making it smooth </summary>
-        static Vector3 GenerateBulgeStar(GalaxyConfig c)
+        public static Vector3 GenerateBulgeStar(GalaxyConfig c)
             => new Vector3(Gaussian(c.bulgeScaleX), Gaussian(c.bulgeScaleY), Gaussian(c.bulgeScaleZ));
 
-        static Vector3 GenerateDiskStar(GalaxyConfig c, out bool isInterarm)
+        /// <summary> Generate a disk star's position </summary>
+        public tatic Vector3 GenerateDiskStar(GalaxyConfig c, out bool isInterarm)
         {
             isInterarm = false;
             float scaleLength = c.galaxyRadius * c.diskScaleLengthFraction;
@@ -504,7 +506,8 @@ namespace GalacticDisk
             return new Vector3(x, y, z);
         }
 
-        static float Gaussian(float sigma)
+        /// <summary> Get Gaussian distribution for a sigma </summary>
+        public static float Gaussian(float sigma)
         {
             float u1 = Mathf.Max(UnityEngine.Random.value, 0.0001f);
             float u2 = UnityEngine.Random.value;
@@ -516,7 +519,8 @@ namespace GalacticDisk
             return rand * sigma;
         }
 
-        static Color RandomStarColor(GalaxyConfig c, bool isBulge, bool isArmStar)
+        /// <summary> Get the random star color used by a star depending on where it is in the disk </summary>
+        public static Color RandomStarColor(GalaxyConfig c, bool isBulge, bool isArmStar)
         {
             Color color = isBulge ? c.colorBulge : (isArmStar ? c.colorArms : c.colorInterarm);
 
@@ -534,7 +538,8 @@ namespace GalacticDisk
             return color;
         }
 
-        static Texture2D CreateDefaultParticleTexture(int size = 64)
+        /// <summary> Create the default particle texture, a simple orb </summary>
+        public static Texture2D CreateDefaultParticleTexture(int size = 64)
         {
             Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
 
