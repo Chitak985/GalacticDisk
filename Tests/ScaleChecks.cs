@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Reflection;
 using GalacticDisk;
-using GalacticDisk.Rendering;
 using UnityEditor;
 using UnityEngine;
 
@@ -88,6 +87,8 @@ public static class ScaleChecks
                 foreach (GameObject legacyRoot in legacyRoots)
                 {
                     Require(legacyRoot.GetComponent<GalacticDiskObject>().ps.particleCount == 2048, "Legacy layer preserved");
+                    // Edit-mode harnesses do not dispatch MonoBehaviour.OnDestroy.
+                    legacyRoot.GetComponent<GalacticDiskObject>().ReleaseRenderer();
                     UnityEngine.Object.DestroyImmediate(legacyRoot);
                 }
             }
@@ -119,6 +120,8 @@ public static class ScaleChecks
         try
         {
             camera.targetTexture = target;
+            foreach (var renderer in UnityEngine.Object.FindObjectsOfType<StableParticleRenderer>())
+                typeof(StableParticleRenderer).GetMethod("PrepareCamera", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(renderer, new object[] { camera });
             foreach (var renderer in UnityEngine.Object.FindObjectsOfType<VolumetricDiskRenderer>())
                 typeof(VolumetricDiskRenderer).GetMethod("PrepareCamera", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(renderer, new object[] { camera });
             camera.Render(); RenderTexture.active = target;

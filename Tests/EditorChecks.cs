@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using GalacticDisk;
-using GalacticDisk.Rendering;
 using UnityEditor;
 using UnityEngine;
 
@@ -132,11 +131,19 @@ public static class EditorChecks
     }
     private static object Invoke(object target, string name, params object[] args)
     {
-        try { return target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(target, args); }
+        if (name == "BuildConfigFromFields" && target is GalacticDiskToolbar)
+        {
+            bool ring = (bool)target.GetType().GetField("isRing", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(target);
+            var inputs = (System.Collections.Generic.Dictionary<string,string>)Invoke(target, "CaptureFieldValues");
+            var result = ConfigEditor.ReadValues(ring, inputs, false);
+            if (!result.IsValid) throw new FormatException(string.Join("\n", result.errors.ToArray()));
+            return result.config;
+        }
+        try { return target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Invoke(target, args); }
         catch (TargetInvocationException error) { throw error.InnerException; }
     }
-    private static void Set(object target, string name, object value) { target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(target, value); }
-    private static T Get<T>(object target, string name) { return (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(target); }
+    private static void Set(object target, string name, object value) { target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(target, value); }
+    private static T Get<T>(object target, string name) { return (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).GetValue(target); }
     private static void Check(bool condition, string message) { checks++; if (!condition) throw new InvalidOperationException("Editor check failed: " + message); }
 }
 #endif

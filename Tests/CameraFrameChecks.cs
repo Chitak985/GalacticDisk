@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Reflection;
 using GalacticDisk;
-using GalacticDisk.Rendering;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;

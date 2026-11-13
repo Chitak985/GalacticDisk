@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Reflection;
 using GalacticDisk;
-using GalacticDisk.Rendering;
 using UnityEditor;
 using UnityEngine;
 
@@ -137,6 +136,8 @@ public static class RingChecks
         try
         {
             camera.targetTexture = target;
+            foreach (var renderer in UnityEngine.Object.FindObjectsOfType<StableParticleRenderer>())
+                typeof(StableParticleRenderer).GetMethod("PrepareCamera", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(renderer, new object[] { camera });
             foreach (var renderer in UnityEngine.Object.FindObjectsOfType<VolumetricDiskRenderer>()) Invoke(renderer, "PrepareCamera", camera);
             camera.Render(); RenderTexture.active = target; texture.ReadPixels(new Rect(0,0,640,640),0,0); texture.Apply();
             long brightness = 0; foreach (Color32 p in texture.GetPixels32()) brightness += p.r + p.g + p.b;
@@ -153,6 +154,14 @@ public static class RingChecks
     }
     private static object Invoke(object target, string name, params object[] args)
     {
+        if (name == "BuildConfigFromFields" && target is GalacticDiskToolbar)
+        {
+            bool ring = (bool)target.GetType().GetField("isRing", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(target);
+            var inputs = (System.Collections.Generic.Dictionary<string,string>)Invoke(target, "CaptureFieldValues");
+            var result = ConfigEditor.ReadValues(ring, inputs, false);
+            if (!result.IsValid) throw new FormatException(string.Join("\n", result.errors.ToArray()));
+            return result.config;
+        }
         try { return target.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance).Invoke(target, args); }
         catch (TargetInvocationException error) { throw error.InnerException; }
     }

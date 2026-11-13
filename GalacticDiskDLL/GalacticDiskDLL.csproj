@@ -95,9 +95,24 @@
     <Compile Include="ConfigEditor.cs" />
     <Compile Include="GalaxyShaderAssets.cs" />
     <Compile Include="VolumetricDiskRenderer.cs" />
+    <Compile Include="StableParticleRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <EmbeddedResource Include="..\GalacticDisk\Assets\galacticdisk-windows.bundle">
+      <LogicalName>GalacticDisk.Shaders.galacticdisk-windows.bundle</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\GalacticDisk\Assets\galacticdisk-linux.bundle" Condition="Exists('..\GalacticDisk\Assets\galacticdisk-linux.bundle')">
+      <LogicalName>GalacticDisk.Shaders.galacticdisk-linux.bundle</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\GalacticDisk\Assets\galacticdisk-macos.bundle" Condition="Exists('..\GalacticDisk\Assets\galacticdisk-macos.bundle')">
+      <LogicalName>GalacticDisk.Shaders.galacticdisk-macos.bundle</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Target Name="ValidateShaderBundle" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('..\GalacticDisk\Assets\galacticdisk-windows.bundle')" Text="Build the Windows shader bundle in UnityAssets before building GalacticDisk.dll." />
+  </Target>
   <Target Name="CopyModAssembly" AfterTargets="Build" Condition="'$(SkipModCopy)' != 'true'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildProjectDirectory)\..\GalacticDisk" />
   </Target>

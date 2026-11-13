@@ -251,6 +251,7 @@ namespace GalacticDisk
             Material material = null;
             Texture2D texture = null;
             VolumetricDiskRenderer volume = null;
+            StableParticleRenderer stableParticles = null;
             try
             {
                 // Clear particle system values
@@ -314,6 +315,15 @@ namespace GalacticDisk
 
                     // Generate and add particles
                     particles = GenerateGalaxy(ps, config);
+                    stableParticles = staged.AddComponent<StableParticleRenderer>();
+                    try { stableParticles.Initialize(config, particles, texture, material.color, renderer); }
+                    catch (Exception error) when (error is System.IO.FileNotFoundException || error is InvalidOperationException)
+                    {
+                        stableParticles.DisposeResources();
+                        GalacticDiskObject.Release(stableParticles); stableParticles = null;
+                        renderer.enabled = true;
+                        Debug.LogWarning("[GalacticDisk] Using native particle drawing because the stable particle shader is unavailable: " + error.Message);
+                    }
                 }
                 
                 // Set up GalacticDisk object
@@ -323,6 +333,7 @@ namespace GalacticDisk
                 owner.orbitBody = FlightGlobals.GetBodyByName(config.planet);
                 owner.renderRoot = staged;
                 owner.volume = volume;
+                owner.stableParticles = stableParticles;
                 owner.ps = ps;
                 owner.psR = renderer;
                 owner.particles = particles;
@@ -341,6 +352,7 @@ namespace GalacticDisk
                 // Dispose of everything if creation fails
                 staged.SetActive(false);
                 volume?.DisposeResources();
+                stableParticles?.DisposeResources();
                 GalacticDiskObject.Release(staged);
                 GalacticDiskObject.Release(material);
                 GalacticDiskObject.Release(texture);
@@ -349,7 +361,7 @@ namespace GalacticDisk
         }
 
         private static bool IsPositiveFinite(float value)
-            => return value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
+            => value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
 
         /// <summary> Read the loaded disk config for a body, used by Load in GUI </summary>
         internal static GalaxyConfig GetConfig(string planetName)
@@ -467,7 +479,7 @@ namespace GalacticDisk
             => new Vector3(Gaussian(c.bulgeScaleX), Gaussian(c.bulgeScaleY), Gaussian(c.bulgeScaleZ));
 
         /// <summary> Generate a disk star's position </summary>
-        public tatic Vector3 GenerateDiskStar(GalaxyConfig c, out bool isInterarm)
+        public static Vector3 GenerateDiskStar(GalaxyConfig c, out bool isInterarm)
         {
             isInterarm = false;
 

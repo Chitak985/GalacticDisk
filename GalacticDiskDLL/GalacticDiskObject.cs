@@ -23,6 +23,7 @@ namespace GalacticDisk
         public GameObject renderRoot;
         /// <summary> The volumetric renderer used for the volumetric part of the disk </summary>
         public VolumetricDiskRenderer volume;
+        public StableParticleRenderer stableParticles;
         /// <summary> Texture used by disk particles </summary>
         public Texture2D ownedTexture;
 
@@ -40,28 +41,28 @@ namespace GalacticDisk
         /// <summary> Release the disk renderer and free up any used data </summary>
         public void ReleaseRenderer()
         {   
-            Debug.Log($"[GalacticDisk] Releasing disk renderer \"{ps.gameObject.name}\".");
+            if (renderRoot != null) Debug.Log($"[GalacticDisk] Releasing disk renderer \"{renderRoot.name}\".");
             
             // Disable the entire disk object
-            renderRoot?.SetActive(false);
+            if (renderRoot != null) renderRoot.SetActive(false);
             
             // Dispose of all volumetric resources
             volume?.DisposeResources();
+            stableParticles?.DisposeResources();
             
             // Release object, material, and texture
             Release(renderRoot); Release(material); Release(ownedTexture);
             
             // Null everything else for garbage collector
-            renderRoot = null; volume = null; ps = null; psR = null;
+            renderRoot = null; volume = null; stableParticles = null; ps = null; psR = null;
             material = null; ownedTexture = null; particles = null;
         }
         /// <summary> Release the entire disk by destroying the object </summary>
         public static void Release(UnityEngine.Object obj)
         {
-            Debug.Log($"[GalacticDisk] Releasing disk object \"{obj.name}\".");
-            
             // Do nothing if no object in the first place
             if (obj == null) return;
+            Debug.Log($"[GalacticDisk] Releasing disk object \"{obj.name}\".");
 
             // Destroy object if game is running, do it immediately if it isn't
             if (Application.isPlaying)
@@ -104,6 +105,11 @@ namespace GalacticDisk
 
             // Don't do particle system updates if only using volumetric mode
             if (config.renderMode == DiskRenderMode.Volumetric) return;
+            if ((stableParticles != null && !stableParticles.IsReady) || (stableParticles == null && psR != null && !psR.enabled))
+            {
+                GalacticDiskGenerator.RegenerateDisk(gameObject, config);
+                return;
+            }
 
             // Regenerate disk if the particle system is gone
             if (ps == null || psR == null)

@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Reflection;
 using GalacticDisk;
-using GalacticDisk.Rendering;
 using UnityEditor;
 using UnityEngine;
 
@@ -148,7 +147,15 @@ public static class IntegrationChecks
 
     private static object Invoke(object target, string name, params object[] arguments)
     {
-        try { return target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(target, arguments); }
+        if (name == "BuildConfigFromFields" && target is GalacticDiskToolbar)
+        {
+            bool ring = (bool)target.GetType().GetField("isRing", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(target);
+            var inputs = (System.Collections.Generic.Dictionary<string,string>)Invoke(target, "CaptureFieldValues");
+            var result = ConfigEditor.ReadValues(ring, inputs, false);
+            if (!result.IsValid) throw new FormatException(string.Join("\n", result.errors.ToArray()));
+            return result.config;
+        }
+        try { return target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Invoke(target, arguments); }
         catch (TargetInvocationException error) { throw error.InnerException; }
     }
     private static void Check(bool condition, string message)

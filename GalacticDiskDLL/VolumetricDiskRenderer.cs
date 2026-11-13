@@ -244,7 +244,7 @@ namespace GalacticDisk
         /// </summary>
         private void ReleaseCameraBuffers()
         {
-            foreach (KeyValuePair<Camera,CameraDraws> entry in cameraDraws)
+            foreach (KeyValuePair<Camera,CameraDraws> entry in new List<KeyValuePair<Camera,CameraDraws>>(cameraDraws))
                 ReleaseCameraBuffers(entry.Key, entry.Value);
             cameraDraws.Clear();
         }

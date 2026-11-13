@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using UnityEngine;
-using static Targeting;
 
 namespace GalacticDisk
 {
