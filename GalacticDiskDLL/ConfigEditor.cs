@@ -274,6 +274,12 @@ namespace GalacticDisk
                 result.errors.Add("diskScaleLengthFraction must be positive.");
             if (c.rotationPeriod < 0f)
                 result.errors.Add("rotationPeriod must be zero (no spin) or positive.");
+            foreach (string name in DiskOpacity.Fields)
+            {
+                float value = (float)typeof(GalaxyConfig).GetField(name).GetValue(c);
+                if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
+                    result.errors.Add(name + " must be finite and nonnegative.");
+            }
             if (c.isRing && (c.innerRingRadius < 0f || c.innerRingRadius >= c.galaxyRadius))
                 result.errors.Add("innerRingRadius must be nonnegative and smaller than ringRadius.");
             if (c.alignRotationToOrbit && (c.rotationX != 0f || c.rotationZ != 0f))

@@ -57,6 +57,7 @@ public static class ParticlePlayModeChecks
             File.WriteAllText("ParticleVerification/ParticlePlayMode.txt", error.Length == 0 ?
                 "PASS - Unity " + Application.unityVersion + "\n20 consecutive real Play-mode frames with a rotating distant parent,\n" +
                 "floating-origin camera, short far plane, repeated particle clears, and automatic camera callbacks.\n" +
+                "Inside opacity changes reach automatic camera drawing without rebuilding the disk.\n" +
                 "Disable/re-enable/destruction remove and restore camera drawing correctly.\nKSP APIs are substitutes.\n" : "FAIL - " + error);
             if (error.Length == 0) Debug.Log("GALACTICDISK_PARTICLE_PLAYMODE_PASSED"); else Debug.LogError(error);
             EditorApplication.Exit(error.Length == 0 ? 0 : 1);
@@ -80,6 +81,13 @@ public static class ParticlePlayModeChecks
             Require(ParticleRenderingChecks.Brightness(ParticleRenderingChecks.Capture(camera, "Play-" + captured + ".png", owner)) > 100000,
                 "Every real particle frame remains visible during native clears");
             if (++captured < 20) return;
+            camera.transform.position = owner.transform.position + owner.transform.rotation * new Vector3(60,0,-30) * owner.config.objectScale;
+            camera.transform.rotation = Quaternion.LookRotation((owner.transform.position-camera.transform.position)/owner.config.objectScale);
+            owner.config.insideOpacityMultiplier = 0;
+            Require(ParticleRenderingChecks.Brightness(ParticleRenderingChecks.Capture(camera,"Play-opacity-zero.png",owner)) == 0,"Automatic inside fade reaches zero");
+            owner.config.insideOpacityMultiplier = 0.2f;
+            Require(ParticleRenderingChecks.Brightness(ParticleRenderingChecks.Capture(camera,"Play-opacity-partial.png",owner)) > 0,"Automatic inside fade restores partial opacity");
+            owner.config.insideOpacityMultiplier = 1;
             owner.stableParticles.enabled = false;
             Require(camera.GetCommandBuffers(CameraEvent.AfterForwardAlpha).Length == 0, "OnDisable removes commands");
             owner.stableParticles.enabled = true;

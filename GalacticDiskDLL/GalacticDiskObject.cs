@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace GalacticDisk
 {
@@ -37,10 +38,45 @@ namespace GalacticDisk
         private int framesSinceCheck = 0;
         /// <summary> Frames to wait before checking the disk again, faster will affect performance </summary>
         private const int checkIntervalFrames = 30; // ~2x/sec at 60fps
+        private readonly Dictionary<Camera, Color> nativeCameraColors = new Dictionary<Camera, Color>();
+        private Color nativeBaseColor;
+
+        private void OnEnable()
+        {
+            Camera.onPreCull += PrepareNativeOpacity;
+            Camera.onPostRender += RestoreNativeOpacity;
+        }
+        private void OnDisable()
+        {
+            Camera.onPreCull -= PrepareNativeOpacity;
+            Camera.onPostRender -= RestoreNativeOpacity;
+            if (nativeCameraColors.Count > 0 && material != null) material.color = nativeBaseColor;
+            nativeCameraColors.Clear();
+        }
+        private void PrepareNativeOpacity(Camera camera)
+        {
+            if (!isActiveAndEnabled || config == null || config.renderMode != DiskRenderMode.Particles ||
+                material == null || psR == null || !psR.enabled || (camera.cullingMask & (1 << 10)) == 0 ||
+                (stableParticles != null && stableParticles.enabled)) return;
+            Color tint = material.color;
+            if (nativeCameraColors.Count == 0) nativeBaseColor = tint;
+            nativeCameraColors[camera] = tint;
+            Vector3 local = Quaternion.Inverse(transform.rotation) * ((camera.transform.position - transform.position) / config.objectScale);
+            tint.a *= DiskOpacity.Evaluate(config, camera, local);
+            material.color = tint;
+        }
+        private void RestoreNativeOpacity(Camera camera)
+        {
+            Color tint;
+            if (!nativeCameraColors.TryGetValue(camera, out tint)) return;
+            if (material != null) material.color = tint;
+            nativeCameraColors.Remove(camera);
+        }
 
         /// <summary> Release the disk renderer and free up any used data </summary>
         public void ReleaseRenderer()
         {   
+            nativeCameraColors.Clear();
             if (renderRoot != null) Debug.Log($"[GalacticDisk] Releasing disk renderer \"{renderRoot.name}\".");
             
             // Disable the entire disk object

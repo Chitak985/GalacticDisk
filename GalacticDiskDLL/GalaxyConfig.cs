@@ -15,6 +15,9 @@ namespace GalacticDisk
         public int starCount = 50000;
         public float galaxyRadius = 100f;
         public float diskThickness = 2f;
+        public float insideOpacityMultiplier = 1f;
+        public float atmosphereOpacityMultiplier = 1f;
+        public float atmosphereNightOpacityMultiplier = 1f;
         public float minStarSize = 0.015f;
         public float maxStarSize = 0.09f;
 
@@ -104,6 +107,7 @@ namespace GalacticDisk
             c.starCount = GetInt(node, "starCount", c.starCount);
             c.galaxyRadius = GetFloat(node, "galaxyRadius", c.galaxyRadius);
             c.diskThickness = GetFloat(node, "diskThickness", c.diskThickness);
+            ReadOpacity(node, c);
             c.minStarSize = GetFloat(node, "minStarSize", c.minStarSize);
             c.maxStarSize = GetFloat(node, "maxStarSize", c.maxStarSize);
 
@@ -173,6 +177,13 @@ namespace GalacticDisk
             c.renderScale = GetFloat(node, "renderScale", c.renderScale);
 
             return c;
+        }
+
+        internal static void ReadOpacity(ConfigNode node, GalaxyConfig c)
+        {
+            c.insideOpacityMultiplier = GetFloat(node, "insideOpacityMultiplier", 1f);
+            c.atmosphereOpacityMultiplier = GetFloat(node, "atmosphereOpacityMultiplier", 1f);
+            c.atmosphereNightOpacityMultiplier = GetFloat(node, "atmosphereNightOpacityMultiplier", c.atmosphereOpacityMultiplier);
         }
 
         static string GetString(ConfigNode node, string key, string fallback)

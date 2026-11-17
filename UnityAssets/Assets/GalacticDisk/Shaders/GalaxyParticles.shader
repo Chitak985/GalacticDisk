@@ -4,6 +4,7 @@ Shader "GalacticDisk/Particles"
     {
         _MainTex ("Particle texture", 2D) = "white" {}
         _TintColor ("Tint", Color) = (1,1,1,1)
+        _OpacityMultiplier ("Opacity multiplier", Float) = 1
     }
     SubShader
     {
@@ -21,6 +22,7 @@ Shader "GalacticDisk/Particles"
             float4 _TintColor;
             float4x4 _GalaxyToView;
             float _GalaxyWorldScale;
+            float _OpacityMultiplier;
             float2 _ParticleSizeLimits;
             struct appdata { float4 vertex : POSITION; fixed4 color : COLOR; float2 uv : TEXCOORD0; float2 size : TEXCOORD1; };
             struct v2f { float4 vertex : SV_POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; };
@@ -53,6 +55,7 @@ Shader "GalacticDisk/Particles"
             float4 frag(v2f i) : SV_Target
             {
                 float4 color = tex2D(_MainTex, i.uv) * i.color;
+                color.a = saturate(color.a * _OpacityMultiplier);
                 color.rgb *= color.a;
                 return color;
             }

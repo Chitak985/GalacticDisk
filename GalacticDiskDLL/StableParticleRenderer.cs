@@ -86,6 +86,8 @@ namespace GalacticDisk
                 Matrix4x4.TRS(inverseCamera * offset, inverseCamera * galaxy.rotation, Vector3.one);
             draws.properties.SetMatrix("_GalaxyToView", galaxyToView);
             draws.properties.SetFloat("_GalaxyWorldScale", config.objectScale);
+            draws.properties.SetFloat("_OpacityMultiplier", DiskOpacity.Evaluate(config, camera,
+                Quaternion.Inverse(galaxy.rotation) * (-offset)));
             draws.commands.Clear();
             foreach (Mesh mesh in meshes) draws.commands.DrawMesh(mesh, Matrix4x4.identity, material, 0, 0, draws.properties);
         }

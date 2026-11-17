@@ -60,6 +60,9 @@ namespace GalacticDisk
             config.volume = preset;
             foreach (FieldInfo field in typeof(GalaxySettings).GetFields(BindingFlags.Instance | BindingFlags.Public))
                 (typeof(GalaxyConfig).GetField(field.Name))?.SetValue(config, field.GetValue(preset));
+            config.insideOpacityMultiplier = 0.2f;
+            config.atmosphereOpacityMultiplier = 0.01f;
+            config.atmosphereNightOpacityMultiplier = 0.65f;
         }
 
         public static string Export(GalaxyConfig config, bool includeInactive = false)

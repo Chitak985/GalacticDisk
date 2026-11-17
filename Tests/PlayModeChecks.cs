@@ -131,6 +131,11 @@ public static class PlayModeChecks
                 Require(CameraFrameChecks.Capture(camera, "PlayOrigin-" + originFrames + ".png", renderer) > 200000,
                     "Floating-origin volume must remain visible every Play-mode frame");
                 if (++originFrames <= 12) return;
+                camera.transform.position = owner.transform.position + owner.transform.rotation * new Vector3(60,0,-30) * owner.config.objectScale;
+                camera.transform.rotation = Quaternion.LookRotation((owner.transform.position-camera.transform.position)/owner.config.objectScale);
+                owner.config.insideOpacityMultiplier = 0;
+                Require(CameraFrameChecks.Capture(camera,"PlayOpacityZero.png",renderer) == 0,"Automatic volume inside fade reaches zero");
+                owner.config.insideOpacityMultiplier = 1;
                 renderer.enabled = false;
                 Require(camera.GetCommandBuffers(CameraEvent.BeforeForwardAlpha).Length == 0 &&
                     camera.GetCommandBuffers(CameraEvent.AfterForwardAlpha).Length == 0, "OnDisable removes camera commands");

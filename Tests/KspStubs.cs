@@ -14,7 +14,29 @@ public static class HighLogic { public static GameScenes LoadedScene = GameScene
 public static class KSPUtil { public static string ApplicationRootPath; }
 public static class Planetarium { public static double time; public static double GetUniversalTime() { return time; } }
 public class Orbit { public Vector3 normal = Vector3.forward; public Vector3 GetOrbitNormal() { return normal; } }
-public class CelestialBody : MonoBehaviour { public GameObject scaledBody; public Orbit orbit = new Orbit(); }
+public class CelestialBody : MonoBehaviour
+{
+    public GameObject scaledBody; public Orbit orbit = new Orbit();
+    public bool atmosphere, isStar; public double Radius, atmosphereDepth;
+    public Vector3d position;
+}
+public struct Vector3d
+{
+    public double x, y, z;
+    public Vector3d(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
+    public double sqrMagnitude { get { return x*x+y*y+z*z; } }
+    public double magnitude { get { return Math.Sqrt(sqrMagnitude); } }
+    public static implicit operator Vector3d(Vector3 v) { return new Vector3d(v.x,v.y,v.z); }
+    public static Vector3d operator -(Vector3d a, Vector3d b) { return new Vector3d(a.x-b.x,a.y-b.y,a.z-b.z); }
+    public static double Dot(Vector3d a, Vector3d b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
+}
+public static class ScaledSpace
+{
+    public static Vector3d ScaledToLocalSpace(Vector3d v) { return new Vector3d(v.x*6000,v.y*6000,v.z*6000); }
+}
+public class FlightCamera : MonoBehaviour { public static FlightCamera fetch; public Camera mainCamera; }
+public static class MapView { public static bool MapIsEnabled; }
+public class Sun : MonoBehaviour { public static Sun Instance; public CelestialBody sun; }
 public static class FlightGlobals
 {
     public static List<CelestialBody> Bodies = new List<CelestialBody>();

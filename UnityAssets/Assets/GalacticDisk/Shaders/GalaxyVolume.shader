@@ -1,5 +1,6 @@
 Shader "GalacticDisk/Volume"
 {
+    Properties { _OpacityMultiplier ("Opacity multiplier", Float) = 1 }
     SubShader
     {
         Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" "DisableBatching"="True" }
@@ -29,6 +30,7 @@ Shader "GalacticDisk/Volume"
             float4x4 _GalaxyToView;
             float3 _GalaxyCameraPosition, _GalaxyViewDirection;
             float _GalaxyWorldScale;
+            float _OpacityMultiplier;
             int _Steps;
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
             struct v2f { float4 vertex : SV_POSITION; float3 world : TEXCOORD0; float4 screen : TEXCOORD1; };
@@ -174,7 +176,8 @@ Shader "GalacticDisk/Volume"
                 }
                 light *= _Exposure;
                 light = saturate((light * (2.51 * light + 0.03)) / (light * (2.43 * light + 0.59) + 0.14));
-                return float4(light, 1.0 - dot(transmission, float3(0.333333, 0.333333, 0.333333)));
+                return float4(light * _OpacityMultiplier,
+                    saturate((1.0 - dot(transmission, float3(0.333333, 0.333333, 0.333333))) * _OpacityMultiplier));
             }
             ENDCG
         }

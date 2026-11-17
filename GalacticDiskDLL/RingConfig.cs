@@ -23,6 +23,9 @@ namespace GalacticDisk
             { "innerRingRadius", "innerRingRadius" },
             { "ringRadius", "galaxyRadius" },
             { "ringThickness", "diskThickness" },
+            { "insideOpacityMultiplier", "insideOpacityMultiplier" },
+            { "atmosphereOpacityMultiplier", "atmosphereOpacityMultiplier" },
+            { "atmosphereNightOpacityMultiplier", "atmosphereNightOpacityMultiplier" },
             { "objectScale", "objectScale" },
             { "renderScale", "renderScale" },
             { "particleCount", "starCount" },
@@ -132,6 +135,7 @@ namespace GalacticDisk
             
             // Load volumetric config fields
             VolumeConfig.Read(node, config);
+            GalaxyConfig.ReadOpacity(node, config);
 
             // Get the full texture path if texturePath is present, otherwise just disable textures
             if (!string.IsNullOrEmpty(config.texturePath))

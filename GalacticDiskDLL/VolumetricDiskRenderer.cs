@@ -203,6 +203,7 @@ namespace GalacticDisk
             properties.SetVector("_GalaxyCameraPosition", cameraInGalaxy);
             properties.SetVector("_GalaxyViewDirection", inverseGalaxy * camera.transform.forward);
             properties.SetFloat("_GalaxyWorldScale", config.objectScale);
+            properties.SetFloat("_OpacityMultiplier", DiskOpacity.Evaluate(config, camera, cameraInGalaxy));
             properties.SetFloat("_UseSceneDepth", depthWasRequested ? 1f : 0f);
             draws.volume.Clear(); draws.stars.Clear();
             foreach (MeshRenderer renderer in renderers)

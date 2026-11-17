@@ -1,6 +1,6 @@
 Shader "GalacticDisk/MeshStars"
 {
-    Properties { _Brightness ("Brightness", Float) = 1.7 }
+    Properties { _Brightness ("Brightness", Float) = 1.7 _OpacityMultiplier ("Opacity multiplier", Float) = 1 }
     SubShader
     {
         Tags { "Queue"="Transparent+10" "RenderType"="Transparent" "IgnoreProjector"="True" "DisableBatching"="True" }
@@ -14,6 +14,7 @@ Shader "GalacticDisk/MeshStars"
             #pragma fragment frag
             #include "UnityCG.cginc"
             float _Brightness;
+            float _OpacityMultiplier;
             float _GalaxyRadius, _DustOpacity;
             float3 _CloudExtents;
             float4 _DustColor;
@@ -72,7 +73,7 @@ Shader "GalacticDisk/MeshStars"
                 float r2 = dot(i.uv * 2.0 - 1.0, i.uv * 2.0 - 1.0);
                 float falloff = exp(-r2 * 9.0) + 0.12 * exp(-r2 * 3.5);
                 falloff *= 1.0 - smoothstep(0.65, 1.0, r2);
-                return float4(i.color.rgb * i.color.a * falloff * _Brightness * _Exposure, 0.0);
+                return float4(i.color.rgb * i.color.a * falloff * _Brightness * _Exposure * _OpacityMultiplier, 0.0);
             }
             ENDCG
         }

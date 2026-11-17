@@ -237,6 +237,7 @@ namespace GalacticDisk
                 throw new ArgumentException("Radius/scales must be finite and positive, starCount must be between 0 and 2000000, and/or config is null.");
 
             // Validate before replacing a working renderer
+            DiskOpacity.Validate(config);
             if (config.isRing) VolumeConfig.SettingsFor(config);
 
             // Set up renderer GameObject

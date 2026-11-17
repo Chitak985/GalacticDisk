@@ -50,6 +50,9 @@ namespace GalacticDisk
         private string starCount = "50000";
         private string galaxyRadius = "100";
         private string diskThickness = "2";
+        private string insideOpacityMultiplier = "1";
+        private string atmosphereOpacityMultiplier = "1";
+        private string atmosphereNightOpacityMultiplier = "1";
         private string minStarSize = "0.015";
         private string maxStarSize = "0.09";
 
@@ -86,6 +89,7 @@ namespace GalacticDisk
         private bool showArms = false;
         private bool showBulge = false;
         private bool showColors = false;
+        private bool showOpacity = false;
         private bool showRotation = false;
         private bool showScale = false;
         ///////////////////////////////////////////////////
@@ -241,6 +245,13 @@ namespace GalacticDisk
                 }
             }
 
+            showOpacity = Foldout("Opacity fades", showOpacity);
+            if (showOpacity)
+            {
+                insideOpacityMultiplier = LabeledField("Inside disk", insideOpacityMultiplier);
+                atmosphereOpacityMultiplier = LabeledField("Atmosphere day", atmosphereOpacityMultiplier);
+                atmosphereNightOpacityMultiplier = LabeledField("Atmosphere night", atmosphereNightOpacityMultiplier);
+            }
             showVolumeOptions = Foldout(isRing ? "Particles, fog and dust" : "Volume, dust, nebulae and bar", showVolumeOptions);
             if (showVolumeOptions) DrawVolumeFields();
 
@@ -518,6 +529,9 @@ namespace GalacticDisk
                 $"    starCount = {cfg.starCount.ToString(ci)}\n" +
                 $"    galaxyRadius = {cfg.galaxyRadius.ToString("R", ci)}\n" +
                 $"    diskThickness = {cfg.diskThickness.ToString("R", ci)}\n" +
+                $"    insideOpacityMultiplier = {cfg.insideOpacityMultiplier.ToString("R", ci)}\n" +
+                $"    atmosphereOpacityMultiplier = {cfg.atmosphereOpacityMultiplier.ToString("R", ci)}\n" +
+                $"    atmosphereNightOpacityMultiplier = {cfg.atmosphereNightOpacityMultiplier.ToString("R", ci)}\n" +
                 $"    minStarSize = {cfg.minStarSize.ToString("R", ci)}\n" +
                 $"    maxStarSize = {cfg.maxStarSize.ToString("R", ci)}\n" +
                 $"    armCount = {cfg.armCount.ToString(ci)}\n" +
@@ -568,6 +582,9 @@ namespace GalacticDisk
             starCount = cfg.starCount.ToString(ci);
             galaxyRadius = cfg.galaxyRadius.ToString("R", ci);
             diskThickness = cfg.diskThickness.ToString("R", ci);
+            insideOpacityMultiplier = cfg.insideOpacityMultiplier.ToString("R", ci);
+            atmosphereOpacityMultiplier = cfg.atmosphereOpacityMultiplier.ToString("R", ci);
+            atmosphereNightOpacityMultiplier = cfg.atmosphereNightOpacityMultiplier.ToString("R", ci);
             minStarSize = cfg.minStarSize.ToString("R", ci);
             maxStarSize = cfg.maxStarSize.ToString("R", ci);
 

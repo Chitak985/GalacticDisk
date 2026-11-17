@@ -3,6 +3,9 @@ GalacticDiskRingDefinition
 {
     planet = Eeloo
     renderMode = Volumetric
+    insideOpacityMultiplier = 1
+    atmosphereOpacityMultiplier = 1
+    atmosphereNightOpacityMultiplier = 1 // If omitted, inherits atmosphereOpacityMultiplier
     innerRingRadius = 50
     ringRadius = 100
     ringThickness = 5.5
