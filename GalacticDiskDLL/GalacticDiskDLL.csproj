@@ -97,6 +97,7 @@
     <Compile Include="VolumetricDiskRenderer.cs" />
     <Compile Include="StableParticleRenderer.cs" />
     <Compile Include="DiskOpacity.cs" />
+    <Compile Include="DiskRenderOrder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

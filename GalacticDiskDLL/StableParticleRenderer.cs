@@ -67,7 +67,7 @@ namespace GalacticDisk
             if (nativeRenderer != null) nativeRenderer.enabled = false;
             stale.Clear();
             foreach (var entry in cameras) if (entry.Key == null) stale.Add(entry.Key);
-            foreach (Camera dead in stale) { cameras[dead].commands.Release(); cameras.Remove(dead); }
+            foreach (Camera dead in stale) { DiskRenderOrder.Remove(dead, cameras[dead].commands); cameras[dead].commands.Release(); cameras.Remove(dead); }
             CameraDraws draws;
             if ((camera.cullingMask & (1 << 10)) == 0)
             {
@@ -77,7 +77,8 @@ namespace GalacticDisk
             if (!cameras.TryGetValue(camera, out draws))
             {
                 draws = new CameraDraws();
-                camera.AddCommandBuffer(CameraEvent.AfterForwardAlpha, draws.commands); cameras.Add(camera, draws);
+                draws.commands.name = "GalacticDisk " + transform.parent.name;
+                cameras.Add(camera, draws);
             }
             Transform galaxy = transform.parent;
             Vector3 offset = (galaxy.position - camera.transform.position) / config.objectScale;
@@ -90,12 +91,13 @@ namespace GalacticDisk
                 Quaternion.Inverse(galaxy.rotation) * (-offset)));
             draws.commands.Clear();
             foreach (Mesh mesh in meshes) draws.commands.DrawMesh(mesh, Matrix4x4.identity, material, 0, 0, draws.properties);
+            DiskRenderOrder.Submit(camera, this, draws.commands);
         }
         private void ReleaseCameras()
         {
             foreach (var entry in cameras)
             {
-                if (entry.Key != null) entry.Key.RemoveCommandBuffer(CameraEvent.AfterForwardAlpha, entry.Value.commands);
+                DiskRenderOrder.Remove(entry.Key, entry.Value.commands);
                 entry.Value.commands.Release();
             }
             cameras.Clear();

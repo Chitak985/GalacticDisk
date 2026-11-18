@@ -81,7 +81,7 @@ public static class CameraFrameChecks
             typeof(VolumetricDiskRenderer).GetMethod("OnDisable", BindingFlags.NonPublic | BindingFlags.Instance)
                 .Invoke(owner.volume, null);
             if (camera.GetCommandBuffers(CameraEvent.BeforeForwardAlpha).Length != 0 ||
-                otherCamera.GetCommandBuffers(CameraEvent.AfterForwardAlpha).Length != 0)
+                otherCamera.GetCommandBuffers(DiskRenderOrder.DrawEvent).Length != 0)
                 throw new InvalidOperationException("Disabled renderer retained camera commands");
             if (Capture(camera, "Disabled.png", owner.volume) != 0)
                 throw new InvalidOperationException("Disabled renderer still draws");

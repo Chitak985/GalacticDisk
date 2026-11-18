@@ -99,7 +99,7 @@ public static class ParticleRenderingChecks
             Debug.Log("PARTICLE_MIN_VIEWPORT: nativePixels=" + VisiblePixels(nativeCap) + " stablePixels=" + VisiblePixels(stableCap));
             Require(Math.Abs(VisiblePixels(nativeCap) - VisiblePixels(stableCap)) < VisiblePixels(nativeCap) * 0.03, "Native minimum viewport size is preserved");
             owner.stableParticles.enabled = false; Invoke(owner.stableParticles, "OnDisable");
-            Require(camera.GetCommandBuffers(UnityEngine.Rendering.CameraEvent.AfterForwardAlpha).Length == 0, "Disabling removes particle camera commands");
+            Require(camera.GetCommandBuffers(DiskRenderOrder.DrawEvent).Length == 0, "Disabling removes particle camera commands");
             owner.ReleaseRenderer(); UnityEngine.Object.DestroyImmediate(root);
             UnityEngine.Object.DestroyImmediate(camera.gameObject); UnityEngine.Object.DestroyImmediate(body.scaledBody); UnityEngine.Object.DestroyImmediate(body.gameObject);
             Directory.CreateDirectory("ParticleVerification");

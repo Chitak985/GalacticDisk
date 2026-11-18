@@ -15,8 +15,7 @@ namespace GalacticDisk
         private readonly List<MeshRenderer> renderers = new List<MeshRenderer>();
         private sealed class CameraDraws
         {
-            public readonly CommandBuffer volume = new CommandBuffer { name = "GalacticDisk volume" };
-            public readonly CommandBuffer stars = new CommandBuffer { name = "GalacticDisk mesh stars" };
+            public readonly CommandBuffer commands = new CommandBuffer { name = "GalacticDisk volume and mesh stars" };
             public readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
         }
         private readonly Dictionary<Camera, CameraDraws> cameraDraws = new Dictionary<Camera, CameraDraws>();
@@ -169,14 +168,13 @@ namespace GalacticDisk
             CameraDraws draws;
             if ((camera.cullingMask & (1 << 10)) == 0)
             {
-                if (cameraDraws.TryGetValue(camera, out draws)) { draws.volume.Clear(); draws.stars.Clear(); }
+                if (cameraDraws.TryGetValue(camera, out draws)) draws.commands.Clear();
                 return;
             }
             if (!cameraDraws.TryGetValue(camera, out draws))
             {
                 draws = new CameraDraws();
-                camera.AddCommandBuffer(CameraEvent.BeforeForwardAlpha, draws.volume);
-                camera.AddCommandBuffer(CameraEvent.AfterForwardAlpha, draws.stars);
+                draws.commands.name = "GalacticDisk " + transform.parent.name;
                 cameraDraws.Add(camera, draws);
             }
             // Request depth only for cameras capable of drawing scaled space.
@@ -205,14 +203,19 @@ namespace GalacticDisk
             properties.SetFloat("_GalaxyWorldScale", config.objectScale);
             properties.SetFloat("_OpacityMultiplier", DiskOpacity.Evaluate(config, camera, cameraInGalaxy));
             properties.SetFloat("_UseSceneDepth", depthWasRequested ? 1f : 0f);
-            draws.volume.Clear(); draws.stars.Clear();
+            draws.commands.Clear();
+            // BuildStars runs before the volume proxy is created. Explicitly draw
+            // the volume first so it cannot obscure its own cached star light.
+            for (int pass = 0; pass < 2; pass++)
             foreach (MeshRenderer renderer in renderers)
             {
                 Mesh mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
                 bool isVolume = renderer.sharedMaterial == volumeMaterial;
-                (isVolume ? draws.volume : draws.stars).DrawMesh(mesh, Matrix4x4.identity,
+                if (isVolume != (pass == 0)) continue;
+                draws.commands.DrawMesh(mesh, Matrix4x4.identity,
                     renderer.sharedMaterial, 0, 0, properties);
             }
+            DiskRenderOrder.Submit(camera, this, draws.commands);
         }
         
         /// <summary>
@@ -232,12 +235,8 @@ namespace GalacticDisk
         /// </summary>
         private void ReleaseCameraBuffers(Camera camera, CameraDraws draws)
         {
-            if (camera != null)
-            {
-                camera.RemoveCommandBuffer(CameraEvent.BeforeForwardAlpha, draws.volume);
-                camera.RemoveCommandBuffer(CameraEvent.AfterForwardAlpha, draws.stars);
-            }
-            draws.volume.Release(); draws.stars.Release();
+            DiskRenderOrder.Remove(camera, draws.commands);
+            draws.commands.Release();
             cameraDraws.Remove(camera);
         }
         /// <summary>

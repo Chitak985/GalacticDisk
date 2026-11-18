@@ -70,7 +70,7 @@ public static class ParticlePlayModeChecks
         {
             if (destroying)
             {
-                Require(camera.GetCommandBuffers(CameraEvent.AfterForwardAlpha).Length == 0, "Destroy removes particle commands");
+                Require(camera.GetCommandBuffers(DiskRenderOrder.DrawEvent).Length == 0, "Destroy removes particle commands");
                 EditorApplication.isPlaying = false; return;
             }
             if (owner == null || Time.frameCount - started < 20) return;
@@ -89,7 +89,7 @@ public static class ParticlePlayModeChecks
             Require(ParticleRenderingChecks.Brightness(ParticleRenderingChecks.Capture(camera,"Play-opacity-partial.png",owner)) > 0,"Automatic inside fade restores partial opacity");
             owner.config.insideOpacityMultiplier = 1;
             owner.stableParticles.enabled = false;
-            Require(camera.GetCommandBuffers(CameraEvent.AfterForwardAlpha).Length == 0, "OnDisable removes commands");
+            Require(camera.GetCommandBuffers(DiskRenderOrder.DrawEvent).Length == 0, "OnDisable removes commands");
             owner.stableParticles.enabled = true;
             Require(ParticleRenderingChecks.Brightness(ParticleRenderingChecks.Capture(camera, "Play-reenabled.png", owner)) > 100000, "OnEnable restores drawing");
             UnityEngine.Object.Destroy(owner.gameObject); destroying = true;

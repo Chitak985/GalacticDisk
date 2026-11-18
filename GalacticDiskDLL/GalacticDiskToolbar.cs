@@ -45,6 +45,7 @@ namespace GalacticDisk
         /// Position for the scrollbar of the config value list.
         /// </summary>
         private Vector2 fieldsScroll = Vector2.zero;
+        private Vector2 windowScroll = Vector2.zero;
 
         ///// Config fields stored as strings and booleans /////
         private string starCount = "50000";
@@ -102,7 +103,12 @@ namespace GalacticDisk
         {
             if (!showWindow) return;
 
-            windowRect = GUILayout.Window(985123, windowRect, DrawWindow, "Galactic Disk Config");
+            float width = Mathf.Min(560f, Mathf.Max(160f, Screen.width - 30f));
+            float height = Mathf.Min(560f, Mathf.Max(120f, Screen.height - 30f));
+            windowRect.width = width; windowRect.height = height;
+            windowRect.x = Mathf.Clamp(windowRect.x, 0f, Mathf.Max(0f, Screen.width - width));
+            windowRect.y = Mathf.Clamp(windowRect.y, 0f, Mathf.Max(0f, Screen.height - height));
+            windowRect = GUILayout.Window(985123, windowRect, DrawWindow, "Galactic Disk Config", GUILayout.Width(width), GUILayout.Height(height));
         }
 
         public bool IsVisible => showWindow;
@@ -141,12 +147,14 @@ namespace GalacticDisk
         private void DrawWindow(int id)
         {
             GUILayout.BeginVertical();
+            windowScroll = GUILayout.BeginScrollView(windowScroll, false, true, GUILayout.Height(windowRect.height - 32f));
 
             if (!IsUsableScene())
             {
                 GUILayout.Label("Galactic Disk config is only available in the Space Center, Flight, or Tracking Station scenes.");
+                GUILayout.EndScrollView();
                 GUILayout.EndVertical();
-                GUI.DragWindow();
+                GUI.DragWindow(new Rect(0f, 0f, windowRect.width, 20f));
                 return;
             }
 
@@ -170,7 +178,7 @@ namespace GalacticDisk
             GUILayout.Label("Text edits update fields. Save to config copies fields into the text.");
             GUILayout.Label("Apply rebuilds from the fields. Save the .cfg file manually.");
 
-            fieldsScroll = GUILayout.BeginScrollView(fieldsScroll, GUILayout.Height(Mathf.Clamp(Screen.height - 540f, 80f, 240f)));
+            fieldsScroll = GUILayout.BeginScrollView(fieldsScroll, false, true, GUILayout.Height(Mathf.Clamp(Screen.height - 540f, 80f, 240f)));
 
             GUILayout.Space(10f);
             showBasic = Foldout("Basic", showBasic);
@@ -332,14 +340,15 @@ namespace GalacticDisk
             GUILayout.Space(10f);
             RefreshEditorDiagnostics();
             DrawEditorDiagnostics();
-            configScroll = GUILayout.BeginScrollView(configScroll, GUILayout.Height(160f));
+            configScroll = GUILayout.BeginScrollView(configScroll, false, true, GUILayout.Height(160f));
             string edited = GUILayout.TextArea(configText, GUILayout.MinHeight(150f));
             if (edited != configText) EditConfigText(edited);
             GUILayout.EndScrollView();
 
+            GUILayout.EndScrollView();
             GUILayout.EndVertical();
 
-            GUI.DragWindow();
+            GUI.DragWindow(new Rect(0f, 0f, windowRect.width, 20f));
         }
 
         private void DrawVolumeFields()
