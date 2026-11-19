@@ -17,13 +17,33 @@ namespace GalacticDisk
             internal Transform root;
             internal CommandBuffer commands;
             internal double distance;
+            internal bool visible = true;
+            internal int index, detailDraws;
+            internal bool dot;
+            internal DistantGalaxy.DrawData dotData;
+        }
+        internal struct CameraStats
+        {
+            internal int detailedDisks, dotDisks, dotBatches, detailDraws;
         }
         /// <summary> Camera state to use for each <see cref="Camera"/>. </summary>
         private sealed class CameraState
         {
             internal readonly List<Entry> entries = new List<Entry>();
+            internal readonly Dictionary<CommandBuffer, Entry> byCommands = new Dictionary<CommandBuffer, Entry>();
             internal readonly List<Entry> visible = new List<Entry>();
-            internal readonly List<Entry> attached = new List<Entry>();
+            internal readonly List<CommandBuffer> attached = new List<CommandBuffer>();
+            internal readonly List<CommandBuffer> wanted = new List<CommandBuffer>();
+            internal readonly List<DistantGalaxyBatch> batches = new List<DistantGalaxyBatch>();
+            internal CameraStats stats, reported;
+            internal bool hasReport, reportedMap;
+            internal float nextReport;
+            internal void Dispose(Camera camera)
+            {
+                if (camera != null) foreach (var buffer in attached) camera.RemoveCommandBuffer(DrawEvent,buffer);
+                foreach (var batch in batches) batch.Dispose();
+                attached.Clear(); batches.Clear();
+            }
         }
         /// <summary> List of <see cref="Camera"/>s and their <see cref="CameraState"/>s. </summary>
         private static readonly Dictionary<Camera, CameraState> cameras = new Dictionary<Camera, CameraState>();
@@ -32,7 +52,7 @@ namespace GalacticDisk
         private static bool subscribed;
 
         /// <summary> Submit a <see cref="Camera"/> to update. </summary>
-        internal static void Submit(Camera camera, MonoBehaviour renderer, CommandBuffer commands)
+        internal static void Submit(Camera camera, MonoBehaviour renderer, CommandBuffer commands, int detailDraws = 1)
         {
             PruneCameras();
             CameraState state;
@@ -48,19 +68,35 @@ namespace GalacticDisk
                 }
             }
             
-            foreach (Entry entry in state.entries)
-                if (ReferenceEquals(entry.commands, commands))
-                    return;
+            Entry existing;
+            if (state.byCommands.TryGetValue(commands, out existing))
+            { existing.visible = true; existing.dot = false; existing.detailDraws = detailDraws; return; }
             
-            state.entries.Add(
-                new Entry
+            Entry added = new Entry
                 {
                     renderer = renderer,
                     root = renderer.transform.parent,
-                    commands = commands
-                }
-            );
-            SortCamera(camera);
+                    commands = commands, index = state.entries.Count, detailDraws = detailDraws
+                };
+            state.entries.Add(added); state.byCommands.Add(commands, added);
+            // Defer sorting/attachment until pre-render. Sorting on every startup
+            // registration repeatedly detached and reattached the growing disk list.
+        }
+
+        internal static void SubmitDot(Camera camera, MonoBehaviour renderer, CommandBuffer commands, DistantGalaxy.DrawData data)
+        {
+            Submit(camera,renderer,commands,0);
+            Entry entry = cameras[camera].byCommands[commands]; entry.dot = true; entry.dotData = data;
+        }
+        internal static CameraStats Stats(Camera camera)
+        {
+            CameraState state; return cameras.TryGetValue(camera,out state) ? state.stats : new CameraStats();
+        }
+
+        internal static void Hide(Camera camera, CommandBuffer commands)
+        {
+            CameraState state; Entry entry;
+            if (cameras.TryGetValue(camera, out state) && state.byCommands.TryGetValue(commands, out entry)) entry.visible = false;
         }
 
         /// <summary>
@@ -74,7 +110,7 @@ namespace GalacticDisk
             state.visible.Clear();
             foreach (Entry entry in state.entries)
             {
-                if (entry.renderer == null || entry.root == null ||
+                if (!entry.visible || entry.renderer == null || entry.root == null ||
                     !entry.renderer.isActiveAndEnabled ||
                     (camera.cullingMask & (1 << 10)) == 0)
                     continue;
@@ -85,18 +121,56 @@ namespace GalacticDisk
                 state.visible.Add(entry);
             }
             state.visible.Sort(Compare);
-            bool changed = state.visible.Count != state.attached.Count;
-            for (int i = 0; !changed && i < state.visible.Count; i++)
-                changed = !ReferenceEquals(state.visible[i], state.attached[i]);
-            if (!changed) return;
-            foreach (Entry entry in state.attached)
-                camera.RemoveCommandBuffer(DrawEvent, entry.commands);
-            state.attached.Clear();
+            state.wanted.Clear(); state.stats = new CameraStats();
+            DistantGalaxyBatch pending = null;
             foreach (Entry entry in state.visible)
             {
-                camera.AddCommandBuffer(DrawEvent, entry.commands);
-                state.attached.Add(entry);
+                if (!entry.dot)
+                {
+                    FinishBatch(camera,state,ref pending);
+                    state.wanted.Add(entry.commands); state.stats.detailedDisks++; state.stats.detailDraws += entry.detailDraws;
+                    continue;
+                }
+                if (pending != null && pending.Count == DistantGalaxyBatch.Capacity) FinishBatch(camera,state,ref pending);
+                if (pending == null)
+                {
+                    if (state.batches.Count <= state.stats.dotBatches) state.batches.Add(new DistantGalaxyBatch());
+                    pending = state.batches[state.stats.dotBatches]; pending.Clear();
+                }
+                pending.Add(entry.dotData); state.stats.dotDisks++;
             }
+            FinishBatch(camera,state,ref pending);
+            for (int i = state.stats.dotBatches; i < state.batches.Count; i++) state.batches[i].commands.Clear();
+            Report(camera,state);
+            bool changed = state.wanted.Count != state.attached.Count;
+            for (int i = 0; !changed && i < state.wanted.Count; i++)
+                changed = !ReferenceEquals(state.wanted[i], state.attached[i]);
+            if (!changed) return;
+            foreach (CommandBuffer buffer in state.attached)
+                camera.RemoveCommandBuffer(DrawEvent, buffer);
+            state.attached.Clear();
+            foreach (CommandBuffer buffer in state.wanted)
+            {
+                camera.AddCommandBuffer(DrawEvent, buffer);
+                state.attached.Add(buffer);
+            }
+        }
+        private static void FinishBatch(Camera camera, CameraState state, ref DistantGalaxyBatch pending)
+        {
+            if (pending == null) return;
+            pending.Finish(camera); state.wanted.Add(pending.commands); state.stats.dotBatches++; pending = null;
+        }
+        private static void Report(Camera camera, CameraState state)
+        {
+            if (!Application.isPlaying) return;
+            bool map = MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION;
+            if (state.hasReport && state.reportedMap == map && Time.realtimeSinceStartup < state.nextReport) return;
+            state.nextReport = Time.realtimeSinceStartup+5;
+            CameraStats s = state.stats, old = state.reported;
+            if (!state.hasReport || state.reportedMap != map || s.dotDisks != old.dotDisks || s.detailedDisks != old.detailedDisks || s.dotBatches != old.dotBatches)
+                Debug.Log("[GalacticDisk] Camera '"+camera.name+"' ("+(map ? "map" : "flight/space center")+"): "+s.detailedDisks+
+                    " detailed disks, "+s.dotDisks+" dots in "+s.dotBatches+" batches; "+s.detailDraws+" detailed draws. Dot-only disks submit no star or volume draws.");
+            state.hasReport = true; state.reportedMap = map; state.reported = s;
         }
         /// <summary> Compare to entries by their distance to determine rendering order. </summary>
         private static int Compare(Entry a, Entry b)
@@ -110,14 +184,18 @@ namespace GalacticDisk
         {
             CameraState state;
             if (ReferenceEquals(camera, null) || !cameras.TryGetValue(camera, out state)) return;
-            for (int i = state.entries.Count - 1; i >= 0; i--)
+            Entry entry;
+            if (state.byCommands.TryGetValue(commands,out entry))
             {
-                Entry entry = state.entries[i];
-                if (!ReferenceEquals(entry.commands, commands)) continue;
                 if (camera != null) camera.RemoveCommandBuffer(DrawEvent, commands);
-                state.attached.Remove(entry); state.entries.RemoveAt(i);
+                state.attached.Remove(commands);
+                int last = state.entries.Count-1;
+                Entry moved = state.entries[last]; state.entries[entry.index] = moved; moved.index = entry.index; state.entries.RemoveAt(last);
+                state.byCommands.Remove(commands);
+                // Invalidate old batched geometry immediately, without rebuilding on each scene teardown callback.
+                foreach (var batch in state.batches) batch.commands.Clear();
             }
-            if (state.entries.Count == 0) cameras.Remove(camera);
+            if (state.entries.Count == 0) { state.Dispose(camera); cameras.Remove(camera); }
             PruneCameras();
         }
         /// <summary> Find any stale <see cref="Camera"/>s and remove them. </summary>
@@ -133,7 +211,7 @@ namespace GalacticDisk
 
             // Remove all stale cameras from orderer
             foreach (Camera camera in stale)
-                cameras.Remove(camera);
+            { cameras[camera].Dispose(camera); cameras.Remove(camera); }
 
             // If no cameras and subscribed to ordering, unsubscribe 
             if (cameras.Count == 0 && subscribed)

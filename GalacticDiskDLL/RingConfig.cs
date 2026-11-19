@@ -26,6 +26,12 @@ namespace GalacticDisk
             { "insideOpacityMultiplier", "insideOpacityMultiplier" },
             { "atmosphereOpacityMultiplier", "atmosphereOpacityMultiplier" },
             { "atmosphereNightOpacityMultiplier", "atmosphereNightOpacityMultiplier" },
+            { "enableDistantDots", "enableDistantDots" },
+            { "distantDotStartPixels", "distantDotStartPixels" },
+            { "distantDotEndPixels", "distantDotEndPixels" },
+            { "distantDotSize", "distantDotSize" },
+            { "distantDotBrightness", "distantDotBrightness" },
+            { "distantFadeDistance", "distantFadeDistance" },
             { "objectScale", "objectScale" },
             { "renderScale", "renderScale" },
             { "particleCount", "starCount" },
@@ -113,6 +119,7 @@ namespace GalacticDisk
             GalaxyConfig config = new GalaxyConfig
             {
                 isRing = true,
+                enableDistantDots = false,
                 starCount = defaults.starCount,
                 diskThickness = defaults.diskThickness,
                 minStarSize = defaults.minStarSize,

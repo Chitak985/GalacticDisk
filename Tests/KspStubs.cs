@@ -77,10 +77,21 @@ public class GameDatabase
     public Texture2D GetTexture(string path, bool normal) { return null; }
 }
 public class TestEvent { public void Add(Action callback) { } public void Remove(Action callback) { } }
+public class TestEvent<T>
+{
+    private event Action<T> callbacks;
+    // Match the real KSP EventData constructor, including its rejection of static callbacks.
+    public void Add(Action<T> callback) { callback.Target.GetType(); callbacks += callback; }
+    public void Remove(Action<T> callback) { callbacks -= callback; }
+    public void Fire(T value) { if (callbacks != null) callbacks(value); }
+}
 public static class GameEvents
 {
     public static TestEvent onGUIApplicationLauncherReady = new TestEvent();
     public static TestEvent onGUIApplicationLauncherDestroyed = new TestEvent();
+    public static TestEvent<GameScenes> onGameSceneLoadRequested = new TestEvent<GameScenes>();
+    public static TestEvent<GameScenes> onLevelWasLoaded = new TestEvent<GameScenes>();
+    public static TestEvent<GameScenes> onLevelWasLoadedGUIReady = new TestEvent<GameScenes>();
 }
 namespace KSP.UI.Screens
 {

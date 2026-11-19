@@ -109,7 +109,7 @@ public static class RingChecks
         var galaxy = new ConfigNode("GalacticDiskDefinition"); galaxy.AddValue("planet", body.name); galaxy.AddValue("starCount", 128);
         GameDatabase.Instance.nodes.Add(galaxy);
         var generator = new GameObject("Ring loader").AddComponent<GalacticDiskGenerator>(); generator.LoadDefinitions();
-        var owners = body.scaledBody.GetComponentsInChildren<GalacticDiskObject>();
+        var owners = DiskSceneCache.GetDisks(body.name);
         Check(owners.Length == 2 && GalacticDiskGenerator.GetConfig(body.name).isRing, "Startup loads galaxy and ring on the same body");
         bool legacyFound = false, ringFound = false;
         foreach (var disk in owners)
@@ -119,7 +119,7 @@ public static class RingChecks
             disk.ReleaseRenderer(); UnityEngine.Object.DestroyImmediate(disk.gameObject);
         }
         Check(legacyFound && ringFound, "Ring does not replace an existing galaxy definition");
-        generator.OnDestroy(); UnityEngine.Object.DestroyImmediate(generator.gameObject);
+        DiskSceneCache.Clear(); generator.OnDestroy(); UnityEngine.Object.DestroyImmediate(generator.gameObject);
         UnityEngine.Object.DestroyImmediate(camera.gameObject); UnityEngine.Object.DestroyImmediate(body.scaledBody); UnityEngine.Object.DestroyImmediate(body.gameObject);
         Directory.CreateDirectory("RingVerification");
         File.WriteAllText("RingVerification/Rings.txt", "PASS - Unity " + Application.unityVersion + "\n" + checks + " assertions.\n" +

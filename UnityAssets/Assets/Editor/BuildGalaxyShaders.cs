@@ -25,7 +25,8 @@ public static class BuildGalaxyShaders
             assetNames = new[] {
                 "Assets/GalacticDisk/Shaders/GalaxyVolume.shader",
                 "Assets/GalacticDisk/Shaders/GalaxyMeshStars.shader",
-                "Assets/GalacticDisk/Shaders/GalaxyParticles.shader"
+                "Assets/GalacticDisk/Shaders/GalaxyParticles.shader",
+                "Assets/GalacticDisk/Shaders/GalaxyDistant.shader"
             }
         };
         var manifest = BuildPipeline.BuildAssetBundles(staging, new[] { build },

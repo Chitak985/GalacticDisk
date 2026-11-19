@@ -21,8 +21,6 @@ namespace GalacticDisk
         internal static Dictionary<string, GameObject> disksByPlanet = new Dictionary<string, GameObject>();
         /// <summary> List of all GalacticDisk <see cref="GalaxyConfig"/> currently loaded. </summary>
         private static readonly Dictionary<string, GalaxyConfig> appliedConfigs = new Dictionary<string, GalaxyConfig>();
-        /// <summary> Frames since the last time all GalacticDisks were refreshed. </summary>
-        private int recoveryFrames;
 
         /// <summary> <see cref="GalacticDiskToolbar"/> instance for the toolbar window. </summary>
         private GalacticDiskToolbar toolbar;
@@ -61,6 +59,8 @@ namespace GalacticDisk
         /// <summary> Load all disk definitions </summary>
         internal void LoadDefinitions()
         {
+            var loadTimer = System.Diagnostics.Stopwatch.StartNew();
+            int initialBuilds = GalaxyCloudCache.BuildCount, initialHits = GalaxyCloudCache.HitCount, loaded = 0;
             // List of definition config nodes
             List<ConfigNode> definitions = new List<ConfigNode>(GameDatabase.Instance.GetConfigNodes("GalacticDiskDefinition"));
             definitions.AddRange(GameDatabase.Instance.GetConfigNodes(RingConfig.NodeName));
@@ -91,8 +91,8 @@ namespace GalacticDisk
                     name = "GalacticDisk",
                     layer = 10
                 };
-                go.transform.parent = cBody.scaledBody.transform;
-                go.transform.localPosition = Vector3.zero;
+                go.transform.SetParent(DiskSceneCache.Parent, false);
+                go.transform.position = cBody.scaledBody.transform.position;
 
                 // Process disk
                 try
@@ -109,8 +109,11 @@ namespace GalacticDisk
                 // Add disk to list of loaded disks
                 disksByPlanet[config.planet] = go; // Remember for UI updates
                 appliedConfigs[config.planet] = config;
+                loaded++;
             }
-
+            Debug.Log("[GalacticDisk] Loaded " + loaded + " disks in " + loadTimer.Elapsed.TotalSeconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) +
+                " s; generated " + (GalaxyCloudCache.BuildCount - initialBuilds) + " cloud fields, reused " + (GalaxyCloudCache.HitCount - initialHits) +
+                "; active cloud textures: " + (GalaxyCloudCache.TextureBytes / (1024.0 * 1024.0)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + " MiB.");
         }
 
         public void OnDestroy()
@@ -119,7 +122,11 @@ namespace GalacticDisk
             Debug.Log($"[GalacticDisk] OnDestroy() called on instance id {GetInstanceID()}, scene {HighLogic.LoadedScene}");
 
             // Remove singleton instance
-            if (instance == this) instance = null;
+            if (instance == this)
+            {
+                instance = null; DiskSceneCache.Clear();
+                disksByPlanet.Clear(); appliedConfigs.Clear();
+            }
 
             // Remove GUI
             GameEvents.onGUIApplicationLauncherReady.Remove(AddLauncherButton);
@@ -184,41 +191,19 @@ namespace GalacticDisk
 
         public void Update()
         {
-            // Throtle update
-            if (++recoveryFrames < 60) return;
-            recoveryFrames = 0;
-
-            // Make sure GUI is in the right scene
-            if (HighLogic.LoadedScene != GameScenes.SPACECENTER &&
-                HighLogic.LoadedScene != GameScenes.FLIGHT &&
-                HighLogic.LoadedScene != GameScenes.TRACKSTATION) return;
-                
-            // Recover each disk
-            foreach (KeyValuePair<string, GalaxyConfig> entry
-                in new List<KeyValuePair<string, GalaxyConfig>>(appliedConfigs))
-            {
-                // Make sure disk can be recovered
-                if (disksByPlanet.TryGetValue(entry.Key, out GameObject disk) && disk != null) continue;
-                
-                // Make sure disk's body exists
-                CelestialBody body = FlightGlobals.GetBodyByName(entry.Key);
-                if (body?.scaledBody == null) continue;
-
-                // Apply the disk to recover it
-                try
-                {
-                    ApplyDisk(body, entry.Value);
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError("[GalacticDisk] Scene recovery failed: " + ex);
-                }
-            }
+            DiskSceneCache.Tick();
         }
 
         public void ProcessObject(GameObject go, GalaxyConfig config)
         {
             RegenerateDisk(go, config);
+            CelestialBody body = FlightGlobals.GetBodyByName(config.planet);
+            if (body != null && body.scaledBody != null) DiskSceneCache.Register(go, body);
+        }
+
+        internal static void RememberCachedDisk(GameObject go, GalaxyConfig config)
+        {
+            disksByPlanet[config.planet] = go; appliedConfigs[config.planet] = config;
         }
 
         /// <summary>
@@ -238,6 +223,7 @@ namespace GalacticDisk
 
             // Validate before replacing a working renderer
             DiskOpacity.Validate(config);
+            DistantGalaxy.Validate(config);
             if (config.isRing) VolumeConfig.SettingsFor(config);
 
             // Set up renderer GameObject
@@ -295,10 +281,7 @@ namespace GalacticDisk
                         Debug.LogWarning("[GalacticDisk] Particle texture not found: " + config.texturePath);
 
                     // Create particle system material
-                    material = new Material(Shader.Find("Sprites/Default"))
-                    {
-                        mainTexture = texture
-                    };
+                    material = CreateParticleMaterial(texture);
 
                     // Adjust everything if disk is a ring
                     if (config.isRing)
@@ -383,6 +366,7 @@ namespace GalacticDisk
             if (disksByPlanet.TryGetValue(body.name, out GameObject existing) && existing != null)
             {
                 RegenerateDisk(existing, config);
+                DiskSceneCache.Register(existing, body);
                 appliedConfigs[body.name] = config;
                 return;
             }
@@ -391,8 +375,8 @@ namespace GalacticDisk
             {
                 layer = 10
             };
-            go.transform.parent = body.scaledBody.transform;
-            go.transform.localPosition = Vector3.zero;
+            go.transform.SetParent(DiskSceneCache.Parent, false);
+            go.transform.position = body.scaledBody.transform.position;
             try
             {
                 instance.ProcessObject(go, config);
@@ -413,10 +397,11 @@ namespace GalacticDisk
         {
             if (string.IsNullOrEmpty(planetName)) return;
             appliedConfigs.Remove(planetName);
+            int removed = DiskSceneCache.RemoveBody(planetName);
 
             if (disksByPlanet.TryGetValue(planetName, out GameObject go))
             {
-                if (go != null) GalacticDiskObject.Release(go);
+                if (removed == 0 && go != null) GalacticDiskObject.Release(go);
                 disksByPlanet.Remove(planetName);
             }
         }
@@ -536,6 +521,13 @@ namespace GalacticDisk
             color.b = Mathf.Clamp01(color.b);
 
             return color;
+        }
+
+        // Keep Shader.Find outside the renderer's exception filters so Shabby's
+        // shader replacement transpiler can patch a simple method body.
+        private static Material CreateParticleMaterial(Texture2D texture)
+        {
+            return new Material(Shader.Find("Sprites/Default")) { mainTexture = texture };
         }
 
         /// <summary> Create the default particle texture, a simple orb </summary>

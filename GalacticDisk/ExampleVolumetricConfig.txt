@@ -9,6 +9,14 @@ GalacticDiskDefinition
     atmosphereOpacityMultiplier = 0.01
     atmosphereNightOpacityMultiplier = 0.65
 
+    // Small galaxies become dots; zoom restores detail. See DistantRendering.md.
+    enableDistantDots = true
+    distantDotStartPixels = 12
+    distantDotEndPixels = 4
+    distantDotSize = 3
+    distantDotBrightness = 1
+    distantFadeDistance = 0
+
     // Overall size and resolved mesh stars
     galaxyRadius = 100
     diskThickness = 5.5

@@ -33,6 +33,32 @@ namespace GalacticDisk
         /// The inclination of this body's Orbit also defines how the disk tilts with alignRotationToOrbit
         /// </summary>
         public CelestialBody orbitBody;
+        private Transform sceneAnchor;
+        private bool persistentBinding;
+        internal bool SceneBindingMissing
+        {
+            get { return persistentBinding && (sceneAnchor == null || orbitBody == null || orbitBody.scaledBody == null || sceneAnchor != orbitBody.scaledBody.transform); }
+        }
+        internal void BindSceneBody(CelestialBody body)
+        {
+            persistentBinding = true; orbitBody = body;
+            sceneAnchor = body != null && body.scaledBody != null ? body.scaledBody.transform : null;
+            if (sceneAnchor != null) transform.position = sceneAnchor.position;
+            transform.localScale = Vector3.one;
+        }
+        internal void ClearSceneBody() { sceneAnchor = null; orbitBody = null; }
+        internal bool SyncScenePosition()
+        {
+            if (!persistentBinding) return true;
+            if (!DiskSceneCache.SceneReady || SceneBindingMissing)
+            {
+                if (gameObject.activeSelf) gameObject.SetActive(false);
+                DiskSceneCache.RequestBinding(); return false;
+            }
+            Vector3 position = sceneAnchor.position, current = transform.position;
+            if (current.x != position.x || current.y != position.y || current.z != position.z) transform.position = position;
+            return true;
+        }
 
         /// <summary> Frames since the last check, used for timing the refresh check </summary>
         private int framesSinceCheck = 0;
@@ -58,6 +84,7 @@ namespace GalacticDisk
             if (!isActiveAndEnabled || config == null || config.renderMode != DiskRenderMode.Particles ||
                 material == null || psR == null || !psR.enabled || (camera.cullingMask & (1 << 10)) == 0 ||
                 (stableParticles != null && stableParticles.enabled)) return;
+            if (!SyncScenePosition()) return;
             Color tint = material.color;
             if (nativeCameraColors.Count == 0) nativeBaseColor = tint;
             nativeCameraColors[camera] = tint;
@@ -164,10 +191,14 @@ namespace GalacticDisk
         public void LateUpdate()
         {
             if (config == null) return;
+            if (!SyncScenePosition()) return;
             
-            transform.localScale = Vector3.one;
+            if (transform.localScale != Vector3.one) transform.localScale = Vector3.one;
             if (config.renderMode == DiskRenderMode.Particles && renderRoot != null)
-                renderRoot.transform.localScale = Vector3.one * (config.objectScale * config.renderScale);
+            {
+                Vector3 scale = Vector3.one * (config.objectScale * config.renderScale);
+                if (renderRoot.transform.localScale != scale) renderRoot.transform.localScale = scale;
+            }
                 
             // Disk rotation logic uses Planetarium.GetUniversalTime() to avoid time warp time issues
             float spinDegrees = 0f;
@@ -177,6 +208,7 @@ namespace GalacticDisk
                 spinDegrees = (float)(phase * 360.0);
             }
 
+            Quaternion rotation;
             if (config.alignRotationToOrbit && orbitBody != null && orbitBody.orbit != null)
             {
                 // Swap orbit vectors to work with the actual coordinate system
@@ -185,18 +217,21 @@ namespace GalacticDisk
 
                 // Disk particles are in the local XZ plane (Y is the thickness of the disk)
                 Quaternion align = Quaternion.FromToRotation(Vector3.up, normal);
-                transform.rotation = config.spinAroundDiskAxis ?
+                rotation = config.spinAroundDiskAxis ?
                     Quaternion.AngleAxis(config.rotationY, Vector3.up) * align * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
                     align * Quaternion.Euler(0f, config.rotationY + spinDegrees, 0f);
             }
             else
             {
-                transform.rotation = config.spinAroundDiskAxis ?
+                rotation = config.spinAroundDiskAxis ?
                     Quaternion.Euler(config.rotationX, config.rotationY, config.rotationZ) * Quaternion.AngleAxis(spinDegrees, Vector3.up) :
                     Quaternion.Euler(config.rotationX, config.rotationY + spinDegrees, config.rotationZ);
             }
             
-            volume?.UpdateMatrices();
+            Quaternion current = transform.rotation;
+            if (current.x != rotation.x || current.y != rotation.y || current.z != rotation.z || current.w != rotation.w)
+                transform.rotation = rotation;
+            // Detailed camera draws update volume matrices. Dot-only views need no proxy transforms.
         }
 
         /// <summary>

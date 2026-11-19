@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Threading.Tasks;
 
 namespace GalacticDisk
 {
@@ -14,24 +15,76 @@ namespace GalacticDisk
         public float dustMass;
         public float nebulaMass;
         public float youngGlowMass;
+        internal bool pending;
+        private static Color[] scratch;
+        private const int MaxScratchPixels = 2 * 1024 * 1024;
 
         public static GalaxyCloudField Build(GalaxySettings s, Vector3 extents)
         {
             int width = s.cloudResolution;
             int height = Mathf.Clamp(Mathf.RoundToInt(width * extents.y / Mathf.Max(extents.x, extents.z)), 32, 128);
-            int depth = width;
-            Color[] pixels = new Color[width * height * depth];
+            int length = width * height * width;
+            Color[] pixels = scratch != null && scratch.Length == length ? scratch : new Color[length];
+            scratch = null;
             GalaxyCloudField result = new GalaxyCloudField();
+            try
+            {
+                GeneratePixels(s, extents, result, true, pixels);
+                result.texture = new Texture3D(width, height, width, TextureFormat.RGBAHalf, false)
+                {
+                    name = "Galaxy cloud densities (R dust, G nebulae, B young glow, A noise)",
+                    hideFlags = HideFlags.HideAndDontSave,
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Trilinear
+                };
+                result.texture.SetPixels(pixels);
+                result.texture.Apply(false, true);
+                return result;
+            }
+            catch
+            {
+                if (result.texture != null)
+                {
+                    if (Application.isPlaying) UnityEngine.Object.Destroy(result.texture);
+                    else UnityEngine.Object.DestroyImmediate(result.texture);
+                }
+                throw;
+            }
+            finally { if (pixels.Length <= MaxScratchPixels) scratch = pixels; }
+        }
+
+        // Pure numeric work only. Texture creation/upload stays on the main thread.
+        internal static Color[] GeneratePixels(GalaxySettings s, Vector3 extents, GalaxyCloudField result,
+            bool parallel = true, Color[] reusable = null)
+        {
+            int width = s.cloudResolution;
+            int height = Mathf.Clamp(Mathf.RoundToInt(width * extents.y / Mathf.Max(extents.x, extents.z)), 32, 128);
+            int depth = width;
+            Color[] pixels = reusable ?? new Color[width * height * depth];
             System.Random random = new System.Random(unchecked(s.seed + 17041));
             float radius = s.galaxyRadius;
             float sigma = s.armWidth * Mathf.Lerp(0.6f, 0.05f, s.armConcentration);
             float dustHeight = Mathf.Max(radius * 0.0015f, s.diskThickness * 0.12f);
+            float[] xs = new float[width], ys = new float[height], zs = new float[depth], vertical = new float[height];
+            for (int x = 0; x < width; x++) xs[x] = Axis(x, width, extents.x);
+            for (int z = 0; z < depth; z++) zs[z] = Axis(z, depth, extents.z);
+            for (int y = 0; y < height; y++)
+            {
+                ys[y] = Axis(y, height, extents.y);
+                float dustY = ys[y] / dustHeight;
+                vertical[y] = Mathf.Exp(-0.5f * dustY * dustY);
+            }
+            Vector3 noiseMin = new Vector3(xs[0], ys[0], zs[0]) / radius * s.noiseFrequency;
+            Vector3 noiseMax = new Vector3(xs[width-1], ys[height-1], zs[depth-1]) / radius * s.noiseFrequency;
+            var firstNoise = NoiseLattice.Create(noiseMin, noiseMax, s.seed);
+            var secondNoise = NoiseLattice.Create(noiseMin * 2.07f + Vector3.one * 9.3f, noiseMax * 2.07f + Vector3.one * 9.3f, s.seed);
 
             // R: obscuring dust, G: HII emission, B: blue association glow, A: diffuse clump noise
-            for (int z = 0; z < depth; z++)
+            Action<int> fillSlice = z =>
+            {
                 for (int x = 0; x < width; x++)
                 {
-                    float px = Axis(x, width, extents.x), pz = Axis(z, depth, extents.z);
+                    float px = xs[x], pz = zs[z];
                     float r = Mathf.Sqrt(px * px + pz * pz) / radius;
                     float radial = Mathf.Exp(-r / 0.5f) * (1f - Smooth(0.88f, 1f, r));
                     if (s.isRing)
@@ -50,15 +103,22 @@ namespace GalacticDisk
                     }
                     for (int y = 0; y < height; y++)
                     {
-                        Vector3 p = new Vector3(px, Axis(y, height, extents.y), pz);
-                        float n = FractalNoise(p / radius * s.noiseFrequency, s.seed);
-                        float dustY = p.y / dustHeight;
+                        Vector3 p = new Vector3(px, ys[y], pz);
+                        Vector3 noisePoint = p / radius * s.noiseFrequency;
+                        float n = (firstNoise != null ? firstNoise.Sample(noisePoint) : Noise(noisePoint, s.seed)) * 0.65f +
+                            (secondNoise != null ? secondNoise.Sample(noisePoint * 2.07f + Vector3.one * 9.3f) :
+                                Noise(noisePoint * 2.07f + Vector3.one * 9.3f, s.seed)) * 0.35f;
                         float density = s.enableDustClouds ? radial * innerFade * lane *
-                            Mathf.Exp(-0.5f * dustY * dustY) * s.dustLaneStrength *
+                            vertical[y] * s.dustLaneStrength *
                             Mathf.Lerp(1f, 0.18f + n * n * 3f, s.dustCloudClumpiness) : 0f;
                         pixels[x + width * (y + height * z)] = new Color(density, 0f, 0f, n);
                     }
                 }
+            };
+            if (parallel && pixels.Length >= 128 * 1024 && Environment.ProcessorCount > 2)
+                Parallel.For(0, depth, new ParallelOptions { MaxDegreeOfParallelism = Math.Min(8, Environment.ProcessorCount - 1) }, fillSlice);
+            else
+                for (int z = 0; z < depth; z++) fillSlice(z);
 
             if (s.enableDustClouds)
             {
@@ -119,16 +179,7 @@ namespace GalacticDisk
                         result.youngGlowMass += voxel.b;
                     }
             
-            result.texture = new Texture3D(width, height, depth, TextureFormat.RGBAHalf, false)
-            {
-                name = "Galaxy cloud densities (R dust, G nebulae, B young glow, A noise)",
-                hideFlags = HideFlags.HideAndDontSave,
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Trilinear
-            };
-            result.texture.SetPixels(pixels);
-            result.texture.Apply(false, true);
-            return result;
+            return pixels;
         }
 
         private static void Deposit(Color[] pixels, int width, int height, int depth, Vector3 extents,
@@ -186,6 +237,26 @@ namespace GalacticDisk
                                Gaussian(random) * s.diskThickness * 0.055f,
                                Mathf.Sin(angle) * r);
         }
+        // Reproduce the region-placement random stream without allocating voxels.
+        // Deposits are deterministic and consume no random values of their own.
+        internal static Vector4[] GenerateRegions(GalaxySettings s)
+        {
+            var random = new System.Random(unchecked(s.seed + 7919));
+            int count = s.enableStarFormation ? s.starFormingRegionCount : 0;
+            var regions = new Vector4[count];
+            float sigma = s.armWidth * Mathf.Lerp(0.6f, 0.05f, s.armConcentration);
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 center = SampleArmPoint(s, random, s.starFormationInnerRadius, s.starFormationOuterRadius,
+                    s.starFormationArmBias, -sigma * 0.65f);
+                float size = Mathf.Lerp(s.minStarFormingRegionSize, s.maxStarFormingRegionSize, Mathf.Pow(Next(random), 1.5f));
+                regions[i] = new Vector4(center.x, center.y, center.z, size);
+                Next(random); // angle
+                Next(random); // main nebula's strength
+                for (int lobe = 0; lobe < 3; lobe++) { Gaussian(random); Gaussian(random); Gaussian(random); }
+            }
+            return regions;
+        }
         private static float Axis(int i, int length, float extent)
             => ((i + 0.5f) / length * 2f - 1f) * extent;
         private static int Index(float p, int length, float extent)
@@ -204,8 +275,39 @@ namespace GalacticDisk
             => (float)random.NextDouble();
         private static float Gaussian(System.Random random)
             => Mathf.Sqrt(-2f * Mathf.Log(Mathf.Max(0.000001f, Next(random)))) * Mathf.Cos(2f * Mathf.PI * Next(random));
-        private static float FractalNoise(Vector3 p, int seed)
-            => Noise(p, seed) * 0.65f + Noise(p * 2.07f + Vector3.one * 9.3f, seed) * 0.35f;
+        // Adjacent voxels repeatedly use the same eight integer noise corners.
+        // Precompute those exact hashes once; interpolation is unchanged.
+        private sealed class NoiseLattice
+        {
+            private int x0, y0, z0, width, plane;
+            private float[] values;
+            internal static NoiseLattice Create(Vector3 min, Vector3 max, int seed)
+            {
+                int x0 = Mathf.FloorToInt(min.x), y0 = Mathf.FloorToInt(min.y), z0 = Mathf.FloorToInt(min.z);
+                long width = (long)Mathf.FloorToInt(max.x) - x0 + 2, height = (long)Mathf.FloorToInt(max.y) - y0 + 2,
+                    depth = (long)Mathf.FloorToInt(max.z) - z0 + 2;
+                if (width < 2 || height < 2 || depth < 2 || width > 1000000 || height > 1000000 || depth > 1000000 ||
+                    width * height > 1000000 || width * height * depth > 1000000) return null;
+                var grid = new NoiseLattice { x0 = x0, y0 = y0, z0 = z0, width = (int)width, plane = (int)(width * height),
+                    values = new float[(int)(width * height * depth)] };
+                for (int z = 0; z < depth; z++)
+                    for (int y = 0; y < height; y++)
+                        for (int x = 0; x < width; x++)
+                            grid.values[x + (int)width * y + grid.plane * z] = Hash(x+x0,y+y0,z+z0,seed);
+                return grid;
+            }
+            internal float Sample(Vector3 p)
+            {
+                int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y), z = Mathf.FloorToInt(p.z);
+                float fx = p.x-x, fy = p.y-y, fz = p.z-z;
+                fx = fx*fx*(3f-2f*fx); fy = fy*fy*(3f-2f*fy); fz = fz*fz*(3f-2f*fz);
+                int i = x-x0 + width*(y-y0) + plane*(z-z0), j = i+plane;
+                return Mathf.Lerp(Mathf.Lerp(Mathf.Lerp(values[i],values[i+1],fx),
+                    Mathf.Lerp(values[i+width],values[i+width+1],fx),fy),
+                    Mathf.Lerp(Mathf.Lerp(values[j],values[j+1],fx),
+                    Mathf.Lerp(values[j+width],values[j+width+1],fx),fy),fz);
+            }
+        }
         private static float Noise(Vector3 p, int seed)
         {
             int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y), z = Mathf.FloorToInt(p.z);

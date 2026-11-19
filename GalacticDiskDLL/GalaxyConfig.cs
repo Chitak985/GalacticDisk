@@ -18,6 +18,13 @@ namespace GalacticDisk
         public float insideOpacityMultiplier = 1f;
         public float atmosphereOpacityMultiplier = 1f;
         public float atmosphereNightOpacityMultiplier = 1f;
+        public bool enableDistantDots = true;
+        public float distantDotStartPixels = 12f;
+        public float distantDotEndPixels = 4f;
+        public float distantDotSize = 3f;
+        public float distantDotBrightness = 1f;
+        // Zero disables extra distance fading; otherwise measured in rendered galaxy radii.
+        public float distantFadeDistance = 0f;
         public float minStarSize = 0.015f;
         public float maxStarSize = 0.09f;
 
@@ -108,6 +115,9 @@ namespace GalacticDisk
             c.galaxyRadius = GetFloat(node, "galaxyRadius", c.galaxyRadius);
             c.diskThickness = GetFloat(node, "diskThickness", c.diskThickness);
             ReadOpacity(node, c);
+            foreach (string field in DistantGalaxy.Fields)
+                if (node.HasValue(field) && VolumeConfig.TryParse(typeof(GalaxyConfig).GetField(field).FieldType, node.GetValue(field), out object value))
+                    typeof(GalaxyConfig).GetField(field).SetValue(c, value);
             c.minStarSize = GetFloat(node, "minStarSize", c.minStarSize);
             c.maxStarSize = GetFloat(node, "maxStarSize", c.maxStarSize);
 

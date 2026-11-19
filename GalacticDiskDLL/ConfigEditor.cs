@@ -282,6 +282,8 @@ namespace GalacticDisk
             }
             if (c.isRing && (c.innerRingRadius < 0f || c.innerRingRadius >= c.galaxyRadius))
                 result.errors.Add("innerRingRadius must be nonnegative and smaller than ringRadius.");
+            try { DistantGalaxy.Validate(c); }
+            catch (ArgumentException error) { result.errors.Add(error.Message); }
             if (c.alignRotationToOrbit && (c.rotationX != 0f || c.rotationZ != 0f))
                 result.warnings.Add("rotationX and rotationZ are ignored while alignRotationToOrbit is true.");
             if (c.usesTexture && !System.IO.File.Exists(c.texturePath))

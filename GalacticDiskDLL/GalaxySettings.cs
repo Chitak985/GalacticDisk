@@ -116,6 +116,9 @@ namespace GalacticDisk
 
         [Range(0.1f, 4f)] public float volumeExposure = 1.15f;
 
+        /// <summary> Copy settings for deferred density generation. </summary>
+        internal GalaxySettings Snapshot() { return (GalaxySettings)MemberwiseClone(); }
+
         /// <summary> Get the arm angle based on radius </summary>
         public float ArmAngle(float radius)
             => (

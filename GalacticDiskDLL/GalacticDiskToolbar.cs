@@ -54,6 +54,10 @@ namespace GalacticDisk
         private string insideOpacityMultiplier = "1";
         private string atmosphereOpacityMultiplier = "1";
         private string atmosphereNightOpacityMultiplier = "1";
+        private bool enableDistantDots = true;
+        private string distantDotStartPixels = "12", distantDotEndPixels = "4", distantDotSize = "3";
+        private string distantDotBrightness = "1", distantFadeDistance = "0";
+        private bool showDistant;
         private string minStarSize = "0.015";
         private string maxStarSize = "0.09";
 
@@ -160,7 +164,9 @@ namespace GalacticDisk
 
             EnsureConfigText();
             GUILayout.Label(isRing ? "Ring Config (edit values here)" : "Galaxy Config (edit values here)", GUILayout.Height(20f));
-            isRing = GUILayout.Toolbar(isRing ? 1 : 0, new[] { "Galaxy", "Ring" }) == 1;
+            bool nextRing = GUILayout.Toolbar(isRing ? 1 : 0, new[] { "Galaxy", "Ring" }) == 1;
+            if (nextRing != isRing) enableDistantDots = !nextRing;
+            isRing = nextRing;
             renderMode = (DiskRenderMode)GUILayout.Toolbar((int)renderMode, new[] { "Particles", "Volumetric" });
             if (!isRing && renderMode == DiskRenderMode.Volumetric && GUILayout.Button("Load Milky Way preset into fields"))
             {
@@ -262,6 +268,17 @@ namespace GalacticDisk
             }
             showVolumeOptions = Foldout(isRing ? "Particles, fog and dust" : "Volume, dust, nebulae and bar", showVolumeOptions);
             if (showVolumeOptions) DrawVolumeFields();
+            showDistant = Foldout("Distant galaxy dots", showDistant);
+            if (showDistant)
+            {
+                enableDistantDots = GUILayout.Toggle(enableDistantDots, " Replace small galaxies with soft dots");
+                distantDotStartPixels = LabeledField("Full detail pixels", distantDotStartPixels);
+                distantDotEndPixels = LabeledField("Dot only pixels", distantDotEndPixels);
+                distantDotSize = LabeledField("Min dot pixels", distantDotSize);
+                distantDotBrightness = LabeledField("Dot brightness", distantDotBrightness);
+                distantFadeDistance = LabeledField("Distance fade", distantFadeDistance);
+                GUILayout.Label("Fade distance: rendered galaxy radii; 0 disables extra fading. Zoom controls detail.");
+            }
 
             showRotation = Foldout("Rotation", showRotation);
             if (showRotation)
@@ -568,7 +585,7 @@ namespace GalacticDisk
                 $"    renderScale = {cfg.renderScale.ToString("R", ci)}\n" +
                 $"    usesTexture = {VolumeConfig.Format(cfg.usesTexture)}\n" +
                 $"    texturePath = {cfg.texturePath}\n" +
-                VolumeConfig.Export(cfg, true) +
+                DistantGalaxy.Export(cfg) + VolumeConfig.Export(cfg, true) +
                 "}";
         }
 
@@ -594,6 +611,12 @@ namespace GalacticDisk
             insideOpacityMultiplier = cfg.insideOpacityMultiplier.ToString("R", ci);
             atmosphereOpacityMultiplier = cfg.atmosphereOpacityMultiplier.ToString("R", ci);
             atmosphereNightOpacityMultiplier = cfg.atmosphereNightOpacityMultiplier.ToString("R", ci);
+            enableDistantDots = cfg.enableDistantDots;
+            distantDotStartPixels = cfg.distantDotStartPixels.ToString("R", ci);
+            distantDotEndPixels = cfg.distantDotEndPixels.ToString("R", ci);
+            distantDotSize = cfg.distantDotSize.ToString("R", ci);
+            distantDotBrightness = cfg.distantDotBrightness.ToString("R", ci);
+            distantFadeDistance = cfg.distantFadeDistance.ToString("R", ci);
             minStarSize = cfg.minStarSize.ToString("R", ci);
             maxStarSize = cfg.maxStarSize.ToString("R", ci);
 

@@ -14,12 +14,15 @@ namespace GalacticDisk
         {
             public readonly CommandBuffer commands = new CommandBuffer { name = "GalacticDisk stable particles" };
             public readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
+            internal readonly DistantGalaxy.View distant = new DistantGalaxy.View();
         }
         private readonly Dictionary<Camera, CameraDraws> cameras = new Dictionary<Camera, CameraDraws>();
         private readonly List<Camera> stale = new List<Camera>();
         private GalaxyConfig config;
         private ParticleSystemRenderer nativeRenderer;
         private Material material;
+        private DistantGalaxy distant;
+        private Vector3 drawExtents;
         public bool IsReady { get { return material != null; } }
         public int ParticleCount { get; private set; }
 
@@ -27,6 +30,7 @@ namespace GalacticDisk
             Color tint, ParticleSystemRenderer originalRenderer)
         {
             config = diskConfig; nativeRenderer = originalRenderer;
+            distant = new DistantGalaxy(config);
             material = new Material(GalaxyShaderAssets.LoadParticles());
             material.SetTexture("_MainTex", texture); material.SetColor("_TintColor", tint);
             material.SetVector("_ParticleSizeLimits", new Vector4(originalRenderer.minParticleSize, originalRenderer.maxParticleSize, 0f, 0f));
@@ -40,6 +44,10 @@ namespace GalacticDisk
                 for (int i = 0; i < count; i++)
                 {
                     var particle = particles[first + i]; int v = i * 4, t = i * 6;
+                    distant.AddStar((Color)particle.startColor * tint, particle.startSize * config.renderScale);
+                    Vector3 extent = particle.position * config.renderScale;
+                    float half = particle.startSize * config.renderScale * 0.5f;
+                    drawExtents = Vector3.Max(drawExtents, new Vector3(Mathf.Abs(extent.x)+half, Mathf.Abs(extent.y)+half, Mathf.Abs(extent.z)+half));
                     for (int j = 0; j < 4; j++)
                     {
                         positions[v + j] = particle.position * config.renderScale;
@@ -64,14 +72,15 @@ namespace GalacticDisk
         private void PrepareCamera(Camera camera)
         {
             if (!isActiveAndEnabled || !IsReady || camera == null) return;
+            if (!DiskSceneCache.SyncAnchor(transform.parent)) return;
             if (nativeRenderer != null) nativeRenderer.enabled = false;
             stale.Clear();
             foreach (var entry in cameras) if (entry.Key == null) stale.Add(entry.Key);
             foreach (Camera dead in stale) { DiskRenderOrder.Remove(dead, cameras[dead].commands); cameras[dead].commands.Release(); cameras.Remove(dead); }
             CameraDraws draws;
-            if ((camera.cullingMask & (1 << 10)) == 0)
+            if ((camera.cullingMask & (1 << 10)) == 0 || !DiskVisibility.IsVisible(camera, transform.parent, drawExtents, config.objectScale))
             {
-                if (cameras.TryGetValue(camera, out draws)) draws.commands.Clear();
+                if (cameras.TryGetValue(camera, out draws)) { draws.commands.Clear(); DiskRenderOrder.Hide(camera, draws.commands); }
                 return;
             }
             if (!cameras.TryGetValue(camera, out draws))
@@ -81,17 +90,28 @@ namespace GalacticDisk
                 cameras.Add(camera, draws);
             }
             Transform galaxy = transform.parent;
-            Vector3 offset = (galaxy.position - camera.transform.position) / config.objectScale;
+            distant.Evaluate(camera, galaxy, drawExtents, draws.distant);
+            Vector3 offset = DistantGalaxy.CameraOffset(camera, galaxy, config.objectScale);
+            float opacity = DiskOpacity.Evaluate(config, camera, Quaternion.Inverse(galaxy.rotation) * (-offset));
+            draws.commands.Clear();
+            if (draws.distant.detail <= 0)
+            {
+                DistantGalaxy.DrawData data;
+                if (distant.TryGetDraw(camera,draws.distant,opacity,out data)) DiskRenderOrder.SubmitDot(camera,this,draws.commands,data);
+                else DiskRenderOrder.Hide(camera,draws.commands);
+                return;
+            }
             Quaternion inverseCamera = Quaternion.Inverse(camera.transform.rotation);
             Matrix4x4 galaxyToView = Matrix4x4.Scale(new Vector3(1f, 1f, -1f)) *
                 Matrix4x4.TRS(inverseCamera * offset, inverseCamera * galaxy.rotation, Vector3.one);
             draws.properties.SetMatrix("_GalaxyToView", galaxyToView);
             draws.properties.SetFloat("_GalaxyWorldScale", config.objectScale);
-            draws.properties.SetFloat("_OpacityMultiplier", DiskOpacity.Evaluate(config, camera,
-                Quaternion.Inverse(galaxy.rotation) * (-offset)));
+            draws.properties.SetFloat("_OpacityMultiplier", opacity * draws.distant.detail);
             draws.commands.Clear();
-            foreach (Mesh mesh in meshes) draws.commands.DrawMesh(mesh, Matrix4x4.identity, material, 0, 0, draws.properties);
-            DiskRenderOrder.Submit(camera, this, draws.commands);
+            if (draws.distant.detail > 0)
+                foreach (Mesh mesh in meshes) draws.commands.DrawMesh(mesh, Matrix4x4.identity, material, 0, 0, draws.properties);
+            distant.Draw(draws.commands, draws.properties, camera, draws.distant, opacity);
+            DiskRenderOrder.Submit(camera, this, draws.commands, meshes.Count);
         }
         private void ReleaseCameras()
         {
@@ -107,6 +127,7 @@ namespace GalacticDisk
             ReleaseCameras();
             foreach (Mesh mesh in meshes) Release(mesh);
             meshes.Clear(); Release(material); material = null;
+            distant?.Dispose(); distant = null;
         }
         private void OnDestroy() { DisposeResources(); }
         private static void Release(UnityEngine.Object value)

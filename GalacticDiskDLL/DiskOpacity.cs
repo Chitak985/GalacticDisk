@@ -153,6 +153,6 @@ namespace GalacticDisk
         
         /// <summary> Smooth out a value </summary>
         private static float Smooth(float low, float high, float val)
-            => SmoothStep(0f, 1f, Mathf.Clamp01((val - low) / (high - low)));
+            => Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((val - low) / (high - low)));
     }
 }

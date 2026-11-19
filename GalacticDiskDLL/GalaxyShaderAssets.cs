@@ -10,6 +10,7 @@ namespace GalacticDisk
         private static Shader volume;
         private static Shader stars;
         private static Shader particles;
+        private static Shader distant;
         internal const string ResourcePrefix = "GalacticDisk.Shaders.";
 
         public static void Load(out Shader volumeShader, out Shader starShader)
@@ -26,6 +27,12 @@ namespace GalacticDisk
         {
             if (particles == null) particles = LoadShaders(new[] { "galaxyparticles" })[0];
             return particles;
+        }
+
+        internal static Shader LoadDistant()
+        {
+            if (distant == null) distant = LoadShaders(new[] { "galaxydistant" })[0];
+            return distant;
         }
 
         internal static string CurrentPlatform

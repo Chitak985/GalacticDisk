@@ -17,6 +17,7 @@ Shader "GalacticDisk/Volume"
             float3 _Extents;
             float _GalaxyRadius, _DiskThickness, _ArmCount, _ArmTightness, _ArmWidth;
             float _IsRing, _InnerRingRadius;
+            float _AnalyticBulge;
             float _InterarmFraction, _ArmConcentration, _BulgeFraction, _ScaleLength;
             float3 _BulgeScale;
             float4 _ColorBulge, _ColorArms, _ColorInterarm, _ColorHighlight;
@@ -82,6 +83,19 @@ Shader "GalacticDisk/Volume"
                     float3 tint = _DustColor.rgb / max(0.001, max(_DustColor.r, max(_DustColor.g, _DustColor.b)));
                     extinction = dust * _DustOpacity * _DustColor.a * (1.0 - tint * 0.55);
                     extinction += fog * _ColorInterarm.a * 0.15;
+                    return;
+                }
+                // Pure bulge/bar galaxies use no cloud channels. Keep their
+                // original Gaussian emission/extinction without a 3D lookup.
+                [branch] if (_AnalyticBulge > 0.5)
+                {
+                    float3 scaled = p / max(_BulgeScale, float3(0.001, 0.001, 0.001));
+                    float bulge = exp(-0.5 * dot(scaled, scaled)) * _BulgeFraction * (1.0 - _BarFraction) * 2.0;
+                    float sn = sin(_BarScale.w), cs = cos(_BarScale.w);
+                    float3 barPosition = float3(cs * p.x + sn * p.z, p.y, -sn * p.x + cs * p.z) / max(_BarScale.xyz, 0.001);
+                    float bar = exp(-0.5 * dot(barPosition, barPosition)) * _BulgeFraction * _BarFraction * 2.2;
+                    emission = _ColorBulge.rgb * _ColorBulge.a * (bulge + bar) * _Intensity;
+                    extinction = bulge * _ColorBulge.a * 0.15;
                     return;
                 }
                 float r = length(p.xz) / _GalaxyRadius;

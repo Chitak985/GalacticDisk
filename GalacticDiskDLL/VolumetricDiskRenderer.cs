@@ -17,6 +17,7 @@ namespace GalacticDisk
         {
             public readonly CommandBuffer commands = new CommandBuffer { name = "GalacticDisk volume and mesh stars" };
             public readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
+            internal readonly DistantGalaxy.View distant = new DistantGalaxy.View();
         }
         private readonly Dictionary<Camera, CameraDraws> cameraDraws = new Dictionary<Camera, CameraDraws>();
         private readonly List<Camera> staleCameras = new List<Camera>();
@@ -25,12 +26,16 @@ namespace GalacticDisk
         private GalaxyCloudField cloudField;
         private GalaxySettings settings;
         private GalaxyConfig config;
+        private Vector3 drawExtents;
+        private Texture3D boundField;
+        private DistantGalaxy distant;
         public int StarCount { get; private set; }
         public bool IsReady
         {
             get
             {
-                return starMaterial != null && (volumeMaterial != null || (settings != null && !settings.enableVolume));
+                return starMaterial != null && cloudField != null && (cloudField.texture != null || cloudField.pending) &&
+                    (volumeMaterial != null || (settings != null && !settings.enableVolume));
             }
         }
 
@@ -40,10 +45,12 @@ namespace GalacticDisk
                 throw new NotSupportedException("GalacticDisk volumetric rendering requires 3D textures and RGBAHalf support.");
             config = diskConfig;
             settings = VolumeConfig.SettingsFor(config);
+            distant = new DistantGalaxy(config);
             GalaxyShaderAssets.Load(out Shader volumeShader, out Shader starShader);
             UpdateMatrices();
             Vector3 extents = VolumeExtents();
-            cloudField = GalaxyCloudField.Build(settings, extents);
+            drawExtents = extents;
+            cloudField = GalaxyCloudCache.Acquire(settings, extents);
             starMaterial = new Material(starShader);
             starMaterial.SetTexture("_CloudField", cloudField.texture);
             starMaterial.SetFloat("_Brightness", settings.starBrightness);
@@ -79,6 +86,7 @@ namespace GalacticDisk
             }
             UpdateMatrices();
             // Prepare existing KSP cameras before their render setup begins
+            boundField = cloudField.texture;
             foreach (Camera camera in Camera.allCameras)
                 PrepareCamera(camera);
         }
@@ -109,6 +117,11 @@ namespace GalacticDisk
                 for (int i = 0; i < count; i++)
                 {
                     GalaxyStar star = stars[first + i];
+                    distant.AddStar(star.color, star.size);
+                    float halfSize = star.size * 0.5f;
+                    drawExtents.x = Mathf.Max(drawExtents.x, Mathf.Abs(star.position.x) + halfSize);
+                    drawExtents.y = Mathf.Max(drawExtents.y, Mathf.Abs(star.position.y) + halfSize);
+                    drawExtents.z = Mathf.Max(drawExtents.z, Mathf.Abs(star.position.z) + halfSize);
                     int v = i * 4, t = i * 6;
                     for (int j = 0; j < 4; j++)
                     {
@@ -164,11 +177,12 @@ namespace GalacticDisk
         private void PrepareCamera(Camera camera)
         {
             if (!isActiveAndEnabled || !IsReady || camera == null) return;
+            if (!DiskSceneCache.SyncAnchor(transform.parent)) return;
             PruneCameraBuffers();
             CameraDraws draws;
-            if ((camera.cullingMask & (1 << 10)) == 0)
+            if ((camera.cullingMask & (1 << 10)) == 0 || !DiskVisibility.IsVisible(camera, transform.parent, drawExtents, config.objectScale))
             {
-                if (cameraDraws.TryGetValue(camera, out draws)) draws.commands.Clear();
+                if (cameraDraws.TryGetValue(camera, out draws)) { draws.commands.Clear(); DiskRenderOrder.Hide(camera, draws.commands); }
                 return;
             }
             if (!cameraDraws.TryGetValue(camera, out draws))
@@ -177,10 +191,22 @@ namespace GalacticDisk
                 draws.commands.name = "GalacticDisk " + transform.parent.name;
                 cameraDraws.Add(camera, draws);
             }
+            distant.Evaluate(camera, transform.parent, drawExtents, draws.distant);
+            if (draws.distant.detail <= 0)
+            {
+                Vector3 local = Quaternion.Inverse(transform.parent.rotation) * -DistantGalaxy.CameraOffset(camera, transform.parent, config.objectScale);
+                draws.commands.Clear();
+                DistantGalaxy.DrawData data;
+                if (distant.TryGetDraw(camera,draws.distant,DiskOpacity.Evaluate(config,camera,local),out data))
+                    DiskRenderOrder.SubmitDot(camera,this,draws.commands,data);
+                else DiskRenderOrder.Hide(camera,draws.commands);
+                return;
+            }
+            if (draws.distant.detail > 0 && !WarmCloudField()) { draws.commands.Clear(); DiskRenderOrder.Hide(camera, draws.commands); return; }
             // Request depth only for cameras capable of drawing scaled space.
             // No demo camera or global bloom/tonemapping effect is installed.
             bool depthWasRequested = (camera.depthTextureMode & DepthTextureMode.Depth) != 0;
-            camera.depthTextureMode |= DepthTextureMode.Depth;
+            if (draws.distant.detail > 0) camera.depthTextureMode |= DepthTextureMode.Depth;
             // If this is a newly created camera, requesting depth during pre-cull can
             // be too late for this render. Do not sample an uninitialized fallback.
             UpdateMatrices();
@@ -189,7 +215,7 @@ namespace GalacticDisk
             Transform galaxy = transform.parent;
             Quaternion inverseCamera = Quaternion.Inverse(camera.transform.rotation);
             Quaternion inverseGalaxy = Quaternion.Inverse(galaxy.rotation);
-            Vector3 offset = (galaxy.position - camera.transform.position) / config.objectScale;
+            Vector3 offset = DistantGalaxy.CameraOffset(camera, galaxy, config.objectScale);
             // Camera transforms look along +Z; Unity projection matrices use -Z.
             Matrix4x4 galaxyToView = Matrix4x4.Scale(new Vector3(1f, 1f, -1f)) *
                 Matrix4x4.TRS(inverseCamera * offset, inverseCamera * galaxy.rotation, Vector3.one);
@@ -201,7 +227,8 @@ namespace GalacticDisk
             properties.SetVector("_GalaxyCameraPosition", cameraInGalaxy);
             properties.SetVector("_GalaxyViewDirection", inverseGalaxy * camera.transform.forward);
             properties.SetFloat("_GalaxyWorldScale", config.objectScale);
-            properties.SetFloat("_OpacityMultiplier", DiskOpacity.Evaluate(config, camera, cameraInGalaxy));
+            float opacity = DiskOpacity.Evaluate(config, camera, cameraInGalaxy);
+            properties.SetFloat("_OpacityMultiplier", opacity * draws.distant.detail);
             properties.SetFloat("_UseSceneDepth", depthWasRequested ? 1f : 0f);
             draws.commands.Clear();
             // BuildStars runs before the volume proxy is created. Explicitly draw
@@ -209,13 +236,15 @@ namespace GalacticDisk
             for (int pass = 0; pass < 2; pass++)
             foreach (MeshRenderer renderer in renderers)
             {
+                if (draws.distant.detail <= 0) break;
                 Mesh mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
                 bool isVolume = renderer.sharedMaterial == volumeMaterial;
                 if (isVolume != (pass == 0)) continue;
                 draws.commands.DrawMesh(mesh, Matrix4x4.identity,
                     renderer.sharedMaterial, 0, 0, properties);
             }
-            DiskRenderOrder.Submit(camera, this, draws.commands);
+            DiskRenderOrder.Submit(camera, this, draws.commands, renderers.Count);
+            distant.Draw(draws.commands, properties, camera, draws.distant, opacity);
         }
         
         /// <summary>
@@ -260,6 +289,18 @@ namespace GalacticDisk
             );
         }
 
+        internal bool WarmCloudField()
+        {
+            if (!GalaxyCloudCache.EnsureTexture(cloudField)) return false;
+            if (boundField != cloudField.texture)
+            {
+                starMaterial.SetTexture("_CloudField", cloudField.texture);
+                if (volumeMaterial != null) volumeMaterial.SetTexture("_CloudField", cloudField.texture);
+                boundField = cloudField.texture;
+            }
+            return true;
+        }
+
         /// <summary>
         /// Removes all resources used by the renderer.
         /// </summary>
@@ -273,8 +314,9 @@ namespace GalacticDisk
             foreach (Mesh mesh in meshes) Release(mesh);
             meshes.Clear();
             Release(volumeMaterial); Release(starMaterial);
-            if (cloudField != null) Release(cloudField.texture);
-            cloudField = null; volumeMaterial = null; starMaterial = null;
+            GalaxyCloudCache.Release(cloudField);
+            distant?.Dispose(); distant = null;
+            cloudField = null; boundField = null; volumeMaterial = null; starMaterial = null;
         }
         
         private void OnDestroy() { DisposeResources(); }
@@ -298,6 +340,7 @@ namespace GalacticDisk
         /// </summary>
         private void ApplyVolumeSettings(Material material, Vector3 extents)
         {
+            material.SetFloat("_AnalyticBulge", GalaxyCloudCache.IsAnalyticBulge(settings) ? 1f : 0f);
             material.SetFloat("_IsRing", settings.isRing ? 1f : 0f);
             material.SetFloat("_InnerRingRadius", settings.innerRingRadius);
             material.SetVector("_Extents", extents);
