@@ -10,13 +10,13 @@ GalacticDiskDefinition                    // The config node for spawning a disk
     atmosphereOpacityMultiplier = 1       // Daytime atmosphere multiplier, applied on top of the inside fade
     atmosphereNightOpacityMultiplier = 1  // Nighttime alternative, smoothly blended at twilight; inherits the daytime value if omitted
 
-    // Zoom-aware distant dots; see DistantRendering.md. These are the galaxy defaults.
-    enableDistantDots = true
-    distantDotStartPixels = 12
-    distantDotEndPixels = 4
-    distantDotSize = 3
-    distantDotBrightness = 1
-    distantFadeDistance = 0 // Optional extra distance dimming in rendered bounding-sphere radii; 0 disables it
+    enableDistantDots = true              // Enables dimming the galaxy to a single dot once it is far away enough
+    distantDotStartPixels = 12            // The maximum size of the galaxy dot
+    distantDotEndPixels = 4               // The minimum size of the galaxy dot
+    distantDotSize = 3                    // The main size of the galaxy dot
+    distantDotBrightness = 1              // The brightness of the galaxy dot
+    distantFadeDistance = 0               // Distance to dim the galaxy at
+
     starCount = 250000                    // Number of stars in the galaxy. Do not set this as the actual star number, your computer will die
     galaxyRadius = 200                    // The radius of the galaxy. Used to spread out the stars, if you want to scale it up use objectScale
     diskThickness = 2                     // How thick the disk is vertically. 2 is usually good for any kind of disk (irregular galaxies will need something else)
@@ -31,9 +31,9 @@ GalacticDiskDefinition                    // The config node for spawning a disk
     bulgeScaleX = 8                       // X size of the bulge
     bulgeScaleY = 8                       // Y size of the bulge
     bulgeScaleZ = 8                       // Z size of the bulge
-    colorBulge = 1.0, 0.92, 0.65, 1.0          // RGBA color of the bulge. Alpha is optional and defaults to 1
-    colorArms = 1.0, 0.92, 0.65, 1.0           // RGBA color of the arms. Alpha is optional and defaults to 1
-    colorInterarm = 0.45, 0.65, 1.0, 1.0       // RGBA color of stars between the arms. Alpha is optional and defaults to 1
+    colorBulge = 1.0, 0.92, 0.65, 1.0     // RGBA color of the bulge. Alpha is optional and defaults to 1
+    colorArms = 1.0, 0.92, 0.65, 1.0      // RGBA color of the arms. Alpha is optional and defaults to 1
+    colorInterarm = 0.45, 0.65, 1.0, 1.0  // RGBA color of stars between the arms. Alpha is optional and defaults to 1
     armHighlightColor = 0.95, 0.55, 0.55, 1.0  // RGBA highlight color for arm stars. Alpha is optional and defaults to 1
     armHighlightChance = 0.06             // Each star that is part of an arm has this chance (6% in this case) to be highlighted with a different color
     objectScale = 1e5                     // The size of the disk in-game. This defaults to 1 but that is very low and the disk would likely end up inside the body
@@ -43,12 +43,13 @@ GalacticDiskDefinition                    // The config node for spawning a disk
                                           //objectScale is the visible disk scale and renderScale*objectScale is the scale KSP sees to
                                           //understand when to cull the disk. By making the renderScale higher, the disk will seem bigger
                                           //to KSP and it will avoid culling it for much longer
+    
     alignRotationToOrbit = false          // Aligns the disk to be parallel to its orbit. This will ignore rotationX and Z
     rotationY = 45                        // Changes the spin phase of the disk
     rotationX = 0                         // Tilts the disk
     rotationZ = 0                         // Orients which direction the tilt axis points
     rotationPeriod = 1000                 // Seconds to complete one full rotation, defaults to 0 which will make the disk static.
-    spinAroundDiskAxis = false            // True spins around the tilted disk axis; rotationY remains a world-Y heading.
+    spinAroundDiskAxis = false            // Makes the disk spin around the tilted disk axis
     usesTexture = false                   // Will make the particles the disk uses use a custom texture
     texturePath = YourMod/Textures/e.png  // The texture the disk particles use. Ignored if usesTexture is false
 }
