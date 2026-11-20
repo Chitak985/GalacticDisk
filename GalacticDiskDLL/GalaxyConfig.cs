@@ -4,12 +4,18 @@ using System.IO;
 
 namespace GalacticDisk
 {
+    /// <summary> The configuration used for a disk, containing all the config values and some other things. </summary>
     public class GalaxyConfig
     {
+        /// <summary> Name of the parent body of the disk </summary>
         public string planet;
+        /// <summary> The render mode of the disk </summary>
         public DiskRenderMode renderMode = DiskRenderMode.Particles;
+        /// <summary> <see cref="GalaxySettings"/> used to configure the volumetric render </summary>
         public GalaxySettings volume = new GalaxySettings();
+        /// <summary> Is the disk a ring </summary>
         public bool isRing;
+        /// <summary> Inner radius only used for rings </summary>
         public float innerRingRadius;
 
         public int starCount = 50000;
@@ -23,7 +29,7 @@ namespace GalacticDisk
         public float distantDotEndPixels = 4f;
         public float distantDotSize = 3f;
         public float distantDotBrightness = 1f;
-        // Zero disables extra distance fading; otherwise measured in rendered galaxy radii.
+        /// <summary> Distance in galaxy units, 0f disables distance fade </summary>
         public float distantFadeDistance = 0f;
         public float minStarSize = 0.015f;
         public float maxStarSize = 0.09f;
@@ -31,37 +37,24 @@ namespace GalacticDisk
         public int armCount = 4;
         public float armTightness = 4f;
         public float armWidth = 0.25f;
-
         public float interarmFraction = 0.25f;
         public float armConcentration = 0.35f;
 
         public float bulgeFraction = 0.15f;
-
-        // Bulge is a smooth ellipsoid with an independently-scaled extent on each
-        // axis. Replaces the old single bulgeRadius (a sphere with X=Z, and Y
-        // implicitly at 0.15x). Defaults reproduce roughly that old proportion.
+        /// <summary> Smooth ellipsoid at the center of the disk with independent scales </summary>
         public float bulgeScaleX = 15f;
         public float bulgeScaleY = 2.25f;
         public float bulgeScaleZ = 15f;
 
-        // Separate colors for each population, replacing the old color1 (inner)/
-        // color2 (outer) radial blend. Defaults mirror the old defaults: bulge and
-        // arms took after color1 (warm), interarm took after color2 (cool/blue).
         public Color colorBulge = new Color(1.0f, 0.92f, 0.65f, 1.0f);
         public Color colorArms = new Color(1.0f, 0.92f, 0.65f, 1.0f);
         public Color colorInterarm = new Color(0.45f, 0.65f, 1.0f, 1.0f);
 
-        // Optional highlight color sprinkled onto arm stars only (not bulge, not
-        // interarm) to simulate HII regions/star clusters. Chance defaults to 0
-        // so existing configs render identically unless they opt in.
+        /// <summary> Randomly sprinkled highlighted stars with a different color </summary>
         public Color armHighlightColor = new Color(1.0f, 0.55f, 0.6f, 1.0f);
         public float armHighlightChance = 0f;
 
-        // Fixed WORLD rotation (Euler degrees) the disk is held at every frame,
-        // overriding whatever rotation it would otherwise inherit from its parent
-        // scaled-space body. Defaults to 0,0,0, which matches the disk's previous
-        // (unintentional) behavior of just sitting at identity rotation — so an
-        // existing config with a non-spinning parent body sees no change.
+        /// <summary> World rotation of the disk </summary>
         public float rotationX = 0f;
         public float rotationY = 0f;
         public float rotationZ = 0f;
