@@ -1,15 +1,14 @@
-// Rename to .cfg to enable. Avoid enabling both examples unless you want layered disks.
+// Rename to .cfg to enable.
+// This is also the Milky Way preset in the GUI
 GalacticDiskDefinition
 {
     planet = Eeloo
     renderMode = Volumetric
 
-    // Milky Way visibility: inside disk, then atmospheric day/night on top
     insideOpacityMultiplier = 0.2
     atmosphereOpacityMultiplier = 0.01
     atmosphereNightOpacityMultiplier = 0.65
 
-    // Small galaxies become dots; zoom restores detail. See DistantRendering.md.
     enableDistantDots = true
     distantDotStartPixels = 12
     distantDotEndPixels = 4
@@ -17,7 +16,6 @@ GalacticDiskDefinition
     distantDotBrightness = 1
     distantFadeDistance = 0
 
-    // Overall size and resolved mesh stars
     galaxyRadius = 100
     diskThickness = 5.5
     objectScale = 1.5e15
@@ -29,7 +27,6 @@ GalacticDiskDefinition
     starBrightness = 1.2
     seed = 985123
 
-    // Four arms, with two stronger stellar arms
     armCount = 4
     logarithmicArms = true
     armPitchAngle = 13.5
@@ -42,7 +39,6 @@ GalacticDiskDefinition
     interarmFraction = 0.3
     diskScaleLengthFraction = 0.32
 
-    // Warm central bulge and elongated bar
     bulgeFraction = 0.16
     bulgeScaleX = 7.5
     bulgeScaleY = 3.5
@@ -59,11 +55,10 @@ GalacticDiskDefinition
     colorBulge = 1, 0.76, 0.4, 1
     colorArms = 0.62, 0.76, 1, 0.8
     colorInterarm = 0.88, 0.82, 0.68, 0.65
-    armHighlightColor = 1, 0.38, 0.53, 0.85
 
+    armHighlightColor = 1, 0.38, 0.53, 0.85
     armHighlightChance = 0.035
 
-    // Dark, clumpy dust clouds and spiral lanes
     enableDustClouds = true
     dustCloudCount = 450
     minDustCloudSize = 1.5
@@ -77,7 +72,6 @@ GalacticDiskDefinition
     dustColor = 0.23, 0.10, 0.045, 0.95
     dustScattering = 0.08
 
-    // Pink emission nebulae and blue young-star clusters
     enableStarFormation = true
     starFormingRegionCount = 180
     minStarFormingRegionSize = 0.8
@@ -93,7 +87,6 @@ GalacticDiskDefinition
     youngStarGlowIntensity = 1.5
     youngStarFraction = 0.12
 
-    // Volume appearance and rendering quality
     enableVolume = true
     volumeIntensity = 16
     volumeExposure = 1.15
@@ -102,7 +95,6 @@ GalacticDiskDefinition
     noiseFrequency = 24
     starDustSamples = 12
 
-    // Rotation
     rotationX = 0
     rotationY = 0
     rotationZ = 0
