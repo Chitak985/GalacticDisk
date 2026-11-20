@@ -3,10 +3,10 @@ GalacticDiskRingDefinition
 {
     planet = Eeloo
     renderMode = Volumetric
-    enableDistantDots = false // Rings retain detail by default; can opt in. See DistantRendering.md.
+    enableDistantDots = false
     insideOpacityMultiplier = 1
     atmosphereOpacityMultiplier = 1
-    atmosphereNightOpacityMultiplier = 1 // If omitted, inherits atmosphereOpacityMultiplier
+    atmosphereNightOpacityMultiplier = 1
     innerRingRadius = 50
     ringRadius = 100
     ringThickness = 5.5
