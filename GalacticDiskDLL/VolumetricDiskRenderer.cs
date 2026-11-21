@@ -213,19 +213,17 @@ namespace GalacticDisk
             // Project in galaxy units. Squaring astronomical world-space vectors or
             // inverting their scaled matrices can overflow/underflow 32-bit GPU math.
             Transform galaxy = transform.parent;
-            Quaternion inverseCamera = Quaternion.Inverse(camera.transform.rotation);
             Quaternion inverseGalaxy = Quaternion.Inverse(galaxy.rotation);
             Vector3 offset = DistantGalaxy.CameraOffset(camera, galaxy, config.objectScale);
             // Camera transforms look along +Z; Unity projection matrices use -Z.
-            Matrix4x4 galaxyToView = Matrix4x4.Scale(new Vector3(1f, 1f, -1f)) *
-                Matrix4x4.TRS(inverseCamera * offset, inverseCamera * galaxy.rotation, Vector3.one);
+            Matrix4x4 galaxyToView = DiskCamera.Rotation(camera) * Matrix4x4.TRS(offset,galaxy.rotation,Vector3.one);
             Vector3 cameraInGalaxy = inverseGalaxy * (-offset);
             // Each camera owns its draw state, including nested reflection cameras.
             // Identity draw matrices bypass astronomical parent transforms entirely.
             MaterialPropertyBlock properties = draws.properties;
             properties.SetMatrix("_GalaxyToView", galaxyToView);
             properties.SetVector("_GalaxyCameraPosition", cameraInGalaxy);
-            properties.SetVector("_GalaxyViewDirection", inverseGalaxy * camera.transform.forward);
+            properties.SetVector("_GalaxyViewDirection", inverseGalaxy * DiskCamera.Forward(camera));
             properties.SetFloat("_GalaxyWorldScale", config.objectScale);
             float opacity = DiskOpacity.Evaluate(config, camera, cameraInGalaxy);
             properties.SetFloat("_OpacityMultiplier", opacity * draws.distant.detail);

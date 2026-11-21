@@ -12,7 +12,7 @@ public class KSPAddon : Attribute
 public enum GameScenes { MAINMENU, SPACECENTER, FLIGHT, TRACKSTATION }
 public static class HighLogic { public static GameScenes LoadedScene = GameScenes.SPACECENTER; }
 public static class KSPUtil { public static string ApplicationRootPath; }
-public static class Planetarium { public static double time; public static double GetUniversalTime() { return time; } }
+public static class Planetarium { public static double time; public static Quaternion Rotation = Quaternion.identity; public static double GetUniversalTime() { return time; } }
 public class Orbit { public Vector3 normal = Vector3.forward; public Vector3 GetOrbitNormal() { return normal; } }
 public class CelestialBody : MonoBehaviour
 {

@@ -114,8 +114,8 @@ namespace GalacticDisk
             double distance = Math.Sqrt(x*x+y*y+z*z);
             double radius = Math.Sqrt((double)extents.x*extents.x+(double)extents.y*extents.y+(double)extents.z*extents.z);
             if (distance <= radius || radius <= 0) { view.pixels = -1; return; }
-            Vector3 right = camera.transform.right, up = camera.transform.up, forward = camera.transform.forward;
-            double vx = x*right.x+y*right.y+z*right.z, vy = x*up.x+y*up.y+z*up.z, vz = -(x*forward.x+y*forward.y+z*forward.z);
+            Vector3 right, up, back; DiskCamera.Axes(camera,out right,out up,out back);
+            double vx = x*right.x+y*right.y+z*right.z, vy = x*up.x+y*up.y+z*up.z, vz = x*back.x+y*back.y+z*back.z;
             if (-vz <= radius) { view.pixels = -1; return; }
             Matrix4x4 m = camera.projectionMatrix;
             double w = m.m30*vx+m.m31*vy+m.m32*vz+m.m33/(double)config.objectScale;

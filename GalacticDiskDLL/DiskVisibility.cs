@@ -11,10 +11,10 @@ namespace GalacticDisk
         {
             Vector3 position = root.position, eye = camera.transform.position;
             double x = (double)position.x - eye.x, y = (double)position.y - eye.y, z = (double)position.z - eye.z;
-            Vector3 right = camera.transform.right, up = camera.transform.up, forward = camera.transform.forward;
+            Vector3 right, up, back; DiskCamera.Axes(camera,out right,out up,out back);
             double vx = x*right.x + y*right.y + z*right.z;
             double vy = x*up.x + y*up.y + z*up.z;
-            double vz = -(x*forward.x + y*forward.y + z*forward.z);
+            double vz = x*back.x + y*back.y + z*back.z;
             double radius = Math.Sqrt((double)extents.x*extents.x + (double)extents.y*extents.y + (double)extents.z*extents.z) * scale;
             if (vz > radius) return false;
             Matrix4x4 p = camera.projectionMatrix;

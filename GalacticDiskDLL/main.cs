@@ -125,6 +125,7 @@ namespace GalacticDisk
             if (instance == this)
             {
                 instance = null; DiskSceneCache.Clear();
+                SingularityCompatibility.Clear();
                 disksByPlanet.Clear(); appliedConfigs.Clear();
             }
 
@@ -192,6 +193,7 @@ namespace GalacticDisk
         public void Update()
         {
             DiskSceneCache.Tick();
+            SingularityCompatibility.Tick();
         }
 
         public void ProcessObject(GameObject go, GalaxyConfig config)

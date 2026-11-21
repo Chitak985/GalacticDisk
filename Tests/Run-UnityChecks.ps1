@@ -18,11 +18,13 @@ param(
     [switch]$SceneCache,
     [switch]$Distant,
     [switch]$MapRendering,
+    [switch]$Singularity,
+    [string]$SingularityShaderBundle,
     [string]$DefinitionsRoot,
     [string]$ProductionAssembly
 )
 $ErrorActionPreference = 'Stop'
-if (([int]$PlayMode.IsPresent + [int]$Scale.IsPresent + [int]$CameraFrames.IsPresent + [int]$Rings.IsPresent + [int]$RingPlayMode.IsPresent + [int]$Editor.IsPresent + [int]$Distribution.IsPresent + [int]$Particles.IsPresent + [int]$ParticlePlayMode.IsPresent + [int]$Opacity.IsPresent + [int]$Ordering.IsPresent + [int]$Performance.IsPresent + [int]$AnalyticBulges.IsPresent + [int]$DefinitionBenchmark.IsPresent + [int]$SceneCache.IsPresent + [int]$Distant.IsPresent + [int]$MapRendering.IsPresent) -gt 1) { throw 'Run each check mode separately.' }
+if (([int]$PlayMode.IsPresent + [int]$Scale.IsPresent + [int]$CameraFrames.IsPresent + [int]$Rings.IsPresent + [int]$RingPlayMode.IsPresent + [int]$Editor.IsPresent + [int]$Distribution.IsPresent + [int]$Particles.IsPresent + [int]$ParticlePlayMode.IsPresent + [int]$Opacity.IsPresent + [int]$Ordering.IsPresent + [int]$Performance.IsPresent + [int]$AnalyticBulges.IsPresent + [int]$DefinitionBenchmark.IsPresent + [int]$SceneCache.IsPresent + [int]$Distant.IsPresent + [int]$MapRendering.IsPresent + [int]$Singularity.IsPresent) -gt 1) { throw 'Run each check mode separately.' }
 $repoRoot = Split-Path $PSScriptRoot -Parent
 if (Test-Path -LiteralPath $HarnessPath) { throw 'Choose a new, empty harness directory.' }
 foreach ($directory in @('Assets\Runtime','Assets\Checks','Packages','ProjectSettings','TestGame\GameData\GalacticDisk\Assets')) {
@@ -38,7 +40,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'ScaleChecks.cs') -Destination (
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'CameraFrameChecks.cs') -Destination (Join-Path $HarnessPath 'Assets\Checks')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'RingChecks.cs') -Destination (Join-Path $HarnessPath 'Assets\Checks')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'EditorChecks.cs') -Destination (Join-Path $HarnessPath 'Assets\Checks')
-foreach ($check in @('DistributionChecks.cs','ParticleRenderingChecks.cs','ParticlePlayModeChecks.cs','OpacityChecks.cs','OrderingChecks.cs','PerformanceChecks.cs','AnalyticBulgeChecks.cs','DefinitionBenchmarkChecks.cs','SceneCacheChecks.cs','DistantGalaxyChecks.cs','MapRenderingChecks.cs')) {
+foreach ($check in @('DistributionChecks.cs','ParticleRenderingChecks.cs','ParticlePlayModeChecks.cs','OpacityChecks.cs','OrderingChecks.cs','PerformanceChecks.cs','AnalyticBulgeChecks.cs','DefinitionBenchmarkChecks.cs','SceneCacheChecks.cs','DistantGalaxyChecks.cs','MapRenderingChecks.cs','SingularityCompatibilityChecks.cs')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $check) -Destination (Join-Path $HarnessPath 'Assets\Checks')
 }
 if ($Distribution) {
@@ -57,8 +59,12 @@ if ($DefinitionBenchmark) {
     }
     [IO.File]::WriteAllText((Join-Path $HarnessPath 'DefinitionBenchmark.cfg'),$snapshot.ToString())
 }
+if ($Singularity) {
+    if (-not $SingularityShaderBundle -or -not (Test-Path -LiteralPath $SingularityShaderBundle -PathType Leaf)) { throw 'Specify -SingularityShaderBundle with the installed Singularity Windows shader bundle.' }
+    Copy-Item -LiteralPath $SingularityShaderBundle -Destination (Join-Path $HarnessPath 'SingularityShaders.bin')
+}
 $logPath = Join-Path $HarnessPath 'unity-checks.log'
-$entry = if ($MapRendering) { 'MapRenderingChecks.Run' } elseif ($Distant) { 'DistantGalaxyChecks.Run' } elseif ($SceneCache) { 'SceneCacheChecks.Begin' } elseif ($AnalyticBulges) { 'AnalyticBulgeChecks.Run' } elseif ($DefinitionBenchmark) { 'DefinitionBenchmarkChecks.Run' } elseif ($Performance) { 'PerformanceChecks.Run' } elseif ($Ordering) { 'OrderingChecks.Run' } elseif ($Opacity) { 'OpacityChecks.Run' } elseif ($Distribution) { 'DistributionChecks.Run' } elseif ($Particles) { 'ParticleRenderingChecks.Run' } elseif ($ParticlePlayMode) { 'ParticlePlayModeChecks.Begin' } elseif ($Editor) { 'EditorChecks.Run' } elseif ($PlayMode) { 'PlayModeChecks.Begin' } elseif ($RingPlayMode) { 'PlayModeChecks.BeginRing' } elseif ($Rings) { 'RingChecks.Run' } elseif ($Scale) { 'ScaleChecks.Diagnose' } elseif ($CameraFrames) { 'CameraFrameChecks.Run' } else { 'IntegrationChecks.Run' }
+$entry = if ($Singularity) { 'SingularityCompatibilityChecks.Run' } elseif ($MapRendering) { 'MapRenderingChecks.Run' } elseif ($Distant) { 'DistantGalaxyChecks.Run' } elseif ($SceneCache) { 'SceneCacheChecks.Begin' } elseif ($AnalyticBulges) { 'AnalyticBulgeChecks.Run' } elseif ($DefinitionBenchmark) { 'DefinitionBenchmarkChecks.Run' } elseif ($Performance) { 'PerformanceChecks.Run' } elseif ($Ordering) { 'OrderingChecks.Run' } elseif ($Opacity) { 'OpacityChecks.Run' } elseif ($Distribution) { 'DistributionChecks.Run' } elseif ($Particles) { 'ParticleRenderingChecks.Run' } elseif ($ParticlePlayMode) { 'ParticlePlayModeChecks.Begin' } elseif ($Editor) { 'EditorChecks.Run' } elseif ($PlayMode) { 'PlayModeChecks.Begin' } elseif ($RingPlayMode) { 'PlayModeChecks.BeginRing' } elseif ($Rings) { 'RingChecks.Run' } elseif ($Scale) { 'ScaleChecks.Diagnose' } elseif ($CameraFrames) { 'CameraFrameChecks.Run' } else { 'IntegrationChecks.Run' }
 $arguments = @('-batchmode','-projectPath',('"' + $HarnessPath + '"'),'-executeMethod',$entry,'-force-d3d11','-logFile',('"' + $logPath + '"'))
 if (-not ($PlayMode -or $RingPlayMode -or $ParticlePlayMode -or $SceneCache)) { $arguments += '-quit' }
 $unityProcess = Start-Process -FilePath $UnityEditor -ArgumentList $arguments -WindowStyle Hidden -PassThru
@@ -66,5 +72,5 @@ $unityProcess.WaitForExit()
 Write-Output "Harness: $HarnessPath"
 Write-Output "Log: $logPath"
 if ($unityProcess.ExitCode -ne 0) { throw "Unity checks failed with exit code $($unityProcess.ExitCode). See $logPath" }
-$report = if ($MapRendering) { 'MapRenderingVerification\MapRendering.txt' } elseif ($Distant) { 'DistantVerification\Distant.txt' } elseif ($SceneCache) { 'SceneCacheVerification\SceneCache.txt' } elseif ($AnalyticBulges) { 'AnalyticVerification\Analytic.txt' } elseif ($DefinitionBenchmark) { 'DefinitionVerification\Definitions.txt' } elseif ($Performance) { 'PerformanceVerification\Performance.txt' } elseif ($Ordering) { 'OrderingVerification\Ordering.txt' } elseif ($Opacity) { 'OpacityVerification\Opacity.txt' } elseif ($Distribution) { 'DistributionVerification\Distribution.txt' } elseif ($Particles) { 'ParticleVerification\Particles.txt' } elseif ($ParticlePlayMode) { 'ParticleVerification\ParticlePlayMode.txt' } elseif ($Editor) { 'EditorVerification\Editor.txt' } elseif ($PlayMode) { 'Verification\PlayMode.txt' } elseif ($RingPlayMode) { 'Verification\RingPlayMode.txt' } elseif ($Rings) { 'RingVerification\Rings.txt' } elseif ($Scale) { 'ScaleVerification\ScaleChecks.txt' } elseif ($CameraFrames) { 'FrameVerification\CameraFrames.txt' } else { 'Verification\Integration.txt' }
+$report = if ($Singularity) { 'SingularityVerification\Singularity.txt' } elseif ($MapRendering) { 'MapRenderingVerification\MapRendering.txt' } elseif ($Distant) { 'DistantVerification\Distant.txt' } elseif ($SceneCache) { 'SceneCacheVerification\SceneCache.txt' } elseif ($AnalyticBulges) { 'AnalyticVerification\Analytic.txt' } elseif ($DefinitionBenchmark) { 'DefinitionVerification\Definitions.txt' } elseif ($Performance) { 'PerformanceVerification\Performance.txt' } elseif ($Ordering) { 'OrderingVerification\Ordering.txt' } elseif ($Opacity) { 'OpacityVerification\Opacity.txt' } elseif ($Distribution) { 'DistributionVerification\Distribution.txt' } elseif ($Particles) { 'ParticleVerification\Particles.txt' } elseif ($ParticlePlayMode) { 'ParticleVerification\ParticlePlayMode.txt' } elseif ($Editor) { 'EditorVerification\Editor.txt' } elseif ($PlayMode) { 'Verification\PlayMode.txt' } elseif ($RingPlayMode) { 'Verification\RingPlayMode.txt' } elseif ($Rings) { 'RingVerification\Rings.txt' } elseif ($Scale) { 'ScaleVerification\ScaleChecks.txt' } elseif ($CameraFrames) { 'FrameVerification\CameraFrames.txt' } else { 'Verification\Integration.txt' }
 Get-Content -LiteralPath (Join-Path $HarnessPath $report)

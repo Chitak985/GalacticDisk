@@ -25,7 +25,7 @@ public static class DistributionChecks
             using (var sha = SHA256.Create())
                 Require(Convert.ToBase64String(sha.ComputeHash(embedded)) == Convert.ToBase64String(sha.ComputeHash(
                     File.ReadAllBytes("TestGame/GameData/GalacticDisk/Assets/" + filename))), "Embedded shaders match distributed bundle");
-            string[] names = { "galaxyvolume", "galaxymeshstars", "galaxyparticles", "galaxydistant" };
+            string[] names = { "galaxyvolume", "galaxymeshstars", "galaxyparticles", "galaxydistant", "galaxysingularity" };
             var shaders = GalaxyShaderAssets.LoadShaders(names, "windows", Path.GetFullPath("DLLOnly/Plugins"),
                 Path.GetFullPath("NoGameData"), packaged.GetManifestResourceStream);
             foreach (Shader shader in shaders) Require(shader != null && shader.isSupported, "DLL-only installation loads supported shaders");
@@ -33,7 +33,7 @@ public static class DistributionChecks
             Directory.CreateDirectory(plugins); Directory.CreateDirectory(assets);
             File.WriteAllBytes(Path.Combine(assets, filename), embedded);
             shaders = GalaxyShaderAssets.LoadShaders(names, "windows", plugins, Path.GetFullPath("WrongRoot"), _ => null);
-            Require(shaders.Length == 4, "Assembly-relative Assets work with a renamed mod folder and Plugins layout");
+            Require(shaders.Length == 5, "Assembly-relative Assets work with a renamed mod folder and Plugins layout");
             string game = Path.GetFullPath("TestGame");
             var paths = GalaxyShaderAssets.CandidatePaths("windows", null, Path.Combine(game, "KSP_x64_Data", "..", "."));
             Require(paths.Count == 1 && paths[0] == Path.Combine(game, "GameData", "GalacticDisk", "Assets", filename), "KSP root with data-folder parent segments is normalized");
@@ -43,7 +43,7 @@ public static class DistributionChecks
             Require(failed, "Missing resources give installation instructions");
             Directory.CreateDirectory("DistributionVerification");
             File.WriteAllText("DistributionVerification/Distribution.txt", "PASS - Unity " + Application.unityVersion + "\n" +
-                "Loaded all four shaders directly from the production DLL with no Assets folder.\n" +
+                "Loaded all five shaders directly from the production DLL with no Assets folder.\n" +
                 "Embedded/distributed bytes match; renamed folder + Plugins layout and KSP root normalization verified.\n" +
                 "Explicit missing-asset diagnostics verified. Test uses actual compiled shader assets.\n");
             Debug.Log("GALACTICDISK_DISTRIBUTION_PASSED");

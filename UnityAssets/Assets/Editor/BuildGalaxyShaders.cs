@@ -26,7 +26,8 @@ public static class BuildGalaxyShaders
                 "Assets/GalacticDisk/Shaders/GalaxyVolume.shader",
                 "Assets/GalacticDisk/Shaders/GalaxyMeshStars.shader",
                 "Assets/GalacticDisk/Shaders/GalaxyParticles.shader",
-                "Assets/GalacticDisk/Shaders/GalaxyDistant.shader"
+                "Assets/GalacticDisk/Shaders/GalaxyDistant.shader",
+                "Assets/GalacticDisk/Shaders/GalaxySingularity.shader"
             }
         };
         var manifest = BuildPipeline.BuildAssetBundles(staging, new[] { build },

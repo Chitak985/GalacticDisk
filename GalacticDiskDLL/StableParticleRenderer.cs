@@ -101,9 +101,7 @@ namespace GalacticDisk
                 else DiskRenderOrder.Hide(camera,draws.commands);
                 return;
             }
-            Quaternion inverseCamera = Quaternion.Inverse(camera.transform.rotation);
-            Matrix4x4 galaxyToView = Matrix4x4.Scale(new Vector3(1f, 1f, -1f)) *
-                Matrix4x4.TRS(inverseCamera * offset, inverseCamera * galaxy.rotation, Vector3.one);
+            Matrix4x4 galaxyToView = DiskCamera.Rotation(camera) * Matrix4x4.TRS(offset,galaxy.rotation,Vector3.one);
             draws.properties.SetMatrix("_GalaxyToView", galaxyToView);
             draws.properties.SetFloat("_GalaxyWorldScale", config.objectScale);
             draws.properties.SetFloat("_OpacityMultiplier", opacity * draws.distant.detail);
