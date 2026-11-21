@@ -9,6 +9,8 @@ namespace GalacticDisk
     {
         /// <summary> Name of the parent body of the disk </summary>
         public string planet;
+        /// <summary> Silently skip definitions whose parent body is unavailable. </summary>
+        public bool silenceNoBodyError = false;
         /// <summary> The render mode of the disk </summary>
         public DiskRenderMode renderMode = DiskRenderMode.Particles;
         /// <summary> <see cref="GalaxySettings"/> used to configure the volumetric render </summary>
@@ -102,6 +104,7 @@ namespace GalacticDisk
             GalaxyConfig c = new GalaxyConfig();
 
             c.planet = GetString(node, "planet", c.planet);
+            c.silenceNoBodyError = GetBool(node, "silenceNoBodyError", c.silenceNoBodyError);
             VolumeConfig.Read(node, c);
 
             c.starCount = GetInt(node, "starCount", c.starCount);

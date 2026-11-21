@@ -5,7 +5,8 @@
 
 GalacticDiskDefinition                    // The config node for spawning a disk, must be top level and can be patched by MM just fine
 {
-    planet = Eeloo                        // The celestial body whose disk needs to be modified. If it does not exist, things go very bad
+    planet = Eeloo                        // The parent body. If unavailable, this definition is skipped.
+    silenceNoBodyError = false            // Set true to skip a missing parent silently (default false).
     insideOpacityMultiplier = 1           // Smooth fade inside the disk's thickness and rim; see Opacity.md
     atmosphereOpacityMultiplier = 1       // Daytime atmosphere multiplier, applied on top of the inside fade
     atmosphereNightOpacityMultiplier = 1  // Nighttime alternative, smoothly blended at twilight; inherits the daytime value if omitted

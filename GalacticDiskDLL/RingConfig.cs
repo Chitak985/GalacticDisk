@@ -20,6 +20,7 @@ namespace GalacticDisk
         /// </summary>
         private static readonly string[,] fields = {
             { "planet", "planet" },
+            { "silenceNoBodyError", "silenceNoBodyError" },
             { "innerRingRadius", "innerRingRadius" },
             { "ringRadius", "galaxyRadius" },
             { "ringThickness", "diskThickness" },

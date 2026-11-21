@@ -3,6 +3,7 @@
 GalacticDiskDefinition
 {
     planet = Eeloo
+    silenceNoBodyError = false // Set true to skip a missing parent silently (default false).
     renderMode = Volumetric
 
     insideOpacityMultiplier = 0.2

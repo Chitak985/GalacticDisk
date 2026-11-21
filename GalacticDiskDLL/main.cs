@@ -68,22 +68,25 @@ namespace GalacticDisk
             // Load each config node
             foreach (ConfigNode node in definitions)
             {
-                GalaxyConfig config = GalaxyConfig.FromConfigNode(node);
+                string parent = node.GetValue("planet");
+                bool.TryParse(node.GetValue("silenceNoBodyError"), out bool silentMissingBody);
 
                 // Make sure disk has body
-                if (string.IsNullOrEmpty(config.planet))
+                if (string.IsNullOrEmpty(parent))
                 {
-                    Debug.LogWarning($"[GalacticDisk] GalacticDiskDefinition node missing planet, skipping.");
+                    if (!silentMissingBody) Debug.LogWarning("[GalacticDisk] " + node.name + " node missing planet, skipping.");
                     continue;
                 }
 
                 // Make sure the body exists
-                CelestialBody cBody = FlightGlobals.GetBodyByName(config.planet);
+                CelestialBody cBody = FlightGlobals.GetBodyByName(parent);
                 if (cBody?.scaledBody == null)
                 {
-                    Debug.LogWarning("[GalacticDisk] Planet '" + config.planet + "' has no scaled body yet, not initializing disk.");
+                    if (!silentMissingBody) Debug.LogWarning("[GalacticDisk] Planet '" + parent + "' has no scaled body yet, not initializing disk.");
                     continue;
                 }
+
+                GalaxyConfig config = GalaxyConfig.FromConfigNode(node);
 
                 // Create the GalacticDisk disk object
                 GameObject go = new GameObject

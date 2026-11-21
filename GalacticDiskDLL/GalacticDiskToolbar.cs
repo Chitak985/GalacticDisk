@@ -49,6 +49,7 @@ namespace GalacticDisk
 
         ///// Config fields stored as strings and booleans /////
         private string starCount = "50000";
+        private bool silenceNoBodyError = false;
         private string galaxyRadius = "100";
         private string diskThickness = "2";
         private string insideOpacityMultiplier = "1";
@@ -190,6 +191,7 @@ namespace GalacticDisk
             showBasic = Foldout("Basic", showBasic);
             if (showBasic)
             {
+                silenceNoBodyError = GUILayout.Toggle(silenceNoBodyError, " Silently skip if the parent body is missing");
                 starCount = LabeledField(isRing ? "Particle count" : "Star count", starCount);
                 if (isRing) innerRingRadius = LabeledField("Inner ring radius", innerRingRadius);
                 galaxyRadius = LabeledField(isRing ? "Ring radius" : "Galaxy radius", galaxyRadius);
@@ -551,6 +553,7 @@ namespace GalacticDisk
                 "GalacticDiskDefinition\n" +
                 "{\n" +
                 $"    planet = {planetName}\n" +
+                $"    silenceNoBodyError = {VolumeConfig.Format(cfg.silenceNoBodyError)}\n" +
                 $"    renderMode = {cfg.renderMode}\n" +
                 $"    starCount = {cfg.starCount.ToString(ci)}\n" +
                 $"    galaxyRadius = {cfg.galaxyRadius.ToString("R", ci)}\n" +
@@ -597,6 +600,7 @@ namespace GalacticDisk
             operationMessage = "";
             lastFieldFingerprint = null;
             isRing = cfg.isRing;
+            silenceNoBodyError = cfg.silenceNoBodyError;
             innerRingRadius = cfg.innerRingRadius.ToString("R", CultureInfo.InvariantCulture);
             renderMode = cfg.renderMode;
             volumeFields = cfg.volume;
