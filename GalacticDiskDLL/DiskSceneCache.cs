@@ -71,8 +71,14 @@ namespace GalacticDisk
         internal static bool SyncAnchor(Transform root)
         {
             Record record;
-            return root == null || !byTransform.TryGetValue(root, out record) ||
-                (record.owner != null && record.owner.SyncScenePosition());
+            if (root == null) return true;
+            bool managed = byTransform.TryGetValue(root,out record);
+            GalacticDiskObject owner = managed ? record.owner : root.GetComponent<GalacticDiskObject>();
+            if (owner == null) return !managed;
+            if (!owner.SyncScenePosition()) return false;
+            // KSP or another mod can rotate/reparent scene transforms after LateUpdate.
+            owner.SyncRotationForRendering();
+            return true;
         }
         internal static void RequestBinding() { if (!needsBinding) bindingFrames = 0; needsBinding = true; }
         internal static void BeginSceneChange(GameScenes nextScene)

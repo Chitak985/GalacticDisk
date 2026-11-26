@@ -80,6 +80,7 @@ namespace GalacticDisk
 
         private string rotationX = "0", rotationY = "0", rotationZ = "0";
         private bool alignRotationToOrbit = false;
+        private bool inheritBodyRotation = false;
         private bool spinAroundDiskAxis = false;
         private string rotationPeriod = "0";
         private string diskScaleLengthFraction = "0.25";
@@ -286,6 +287,8 @@ namespace GalacticDisk
             if (showRotation)
             {
                 alignRotationToOrbit = GUILayout.Toggle(alignRotationToOrbit, " Align rotation to planet's orbit plane");
+                inheritBodyRotation = GUILayout.Toggle(inheritBodyRotation, " Inherit the parent body's rotation");
+                if (inheritBodyRotation) GUILayout.Label("Disk rotation and spin are applied in the body's rotating frame.");
 
                 GUI.enabled = !alignRotationToOrbit;
                 rotationX = LabeledField("Rotation X", rotationX);
@@ -590,6 +593,7 @@ namespace GalacticDisk
                 $"    rotationY = {cfg.rotationY.ToString("R", ci)}\n" +
                 $"    rotationZ = {cfg.rotationZ.ToString("R", ci)}\n" +
                 $"    alignRotationToOrbit = {cfg.alignRotationToOrbit}\n" +
+                $"    inheritBodyRotation = {VolumeConfig.Format(cfg.inheritBodyRotation)}\n" +
                 $"    rotationPeriod = {cfg.rotationPeriod.ToString("R", ci)}\n" +
                 $"    spinAroundDiskAxis = {VolumeConfig.Format(cfg.spinAroundDiskAxis)}\n" +
                 $"    diskScaleLengthFraction = {cfg.diskScaleLengthFraction.ToString("R", ci)}\n" +
@@ -669,6 +673,7 @@ namespace GalacticDisk
             rotationY = cfg.rotationY.ToString("R", ci);
             rotationZ = cfg.rotationZ.ToString("R", ci);
             alignRotationToOrbit = cfg.alignRotationToOrbit;
+            inheritBodyRotation = cfg.inheritBodyRotation;
             spinAroundDiskAxis = cfg.spinAroundDiskAxis;
             rotationPeriod = cfg.rotationPeriod.ToString("R", ci);
             diskScaleLengthFraction = cfg.diskScaleLengthFraction.ToString("R", ci);

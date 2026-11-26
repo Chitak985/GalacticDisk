@@ -68,6 +68,8 @@ namespace GalacticDisk
         // around the resulting plane normal. Defaults to false — manual rotationX/
         // Y/Z behave exactly as before unless this is turned on.
         public bool alignRotationToOrbit = false;
+        // Compose the body's scaled-space rotation with the configured disk rotation.
+        public bool inheritBodyRotation = false;
 
         // Seconds for the disk to complete one full rotation about its own plane
         // normal (added on top of rotationY / alignRotationToOrbit). 0 (default)
@@ -161,6 +163,7 @@ namespace GalacticDisk
             c.rotationY = GetFloat(node, "rotationY", c.rotationY);
             c.rotationZ = GetFloat(node, "rotationZ", c.rotationZ);
             c.alignRotationToOrbit = GetBool(node, "alignRotationToOrbit", c.alignRotationToOrbit);
+            c.inheritBodyRotation = GetBool(node, "inheritBodyRotation", c.inheritBodyRotation);
             c.rotationPeriod = GetFloat(node, "rotationPeriod", c.rotationPeriod);
             c.spinAroundDiskAxis = GetBool(node, "spinAroundDiskAxis", c.spinAroundDiskAxis);
             c.diskScaleLengthFraction = GetFloat(node, "diskScaleLengthFraction", c.diskScaleLengthFraction);

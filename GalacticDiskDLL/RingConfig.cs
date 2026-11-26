@@ -44,6 +44,7 @@ namespace GalacticDisk
             { "rotationY", "rotationY" },
             { "rotationZ", "rotationZ" },
             { "alignRotationToOrbit", "alignRotationToOrbit" },
+            { "inheritBodyRotation", "inheritBodyRotation" },
             { "rotationPeriod", "rotationPeriod" },
             { "spinAroundDiskAxis", "spinAroundDiskAxis" },
             { "usesTexture", "usesTexture" },

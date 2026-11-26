@@ -46,6 +46,7 @@ GalacticDiskDefinition                    // The config node for spawning a disk
                                           //to KSP and it will avoid culling it for much longer
     
     alignRotationToOrbit = false          // Aligns the disk to be parallel to its orbit. This will ignore rotationX and Z
+    inheritBodyRotation = false           // True composes the parent's rotation with this disk's rotation/spin.
     rotationY = 45                        // Changes the spin phase of the disk
     rotationX = 0                         // Tilts the disk
     rotationZ = 0                         // Orients which direction the tilt axis points

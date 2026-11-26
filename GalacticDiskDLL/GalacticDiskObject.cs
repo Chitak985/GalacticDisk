@@ -35,6 +35,9 @@ namespace GalacticDisk
         public CelestialBody orbitBody;
         private Transform sceneAnchor;
         private bool persistentBinding;
+        private Quaternion diskRotation;
+        private GalaxyConfig rotationConfig;
+        private int rotationFrame = -1;
         internal bool SceneBindingMissing
         {
             get { return persistentBinding && (sceneAnchor == null || orbitBody == null || orbitBody.scaledBody == null || sceneAnchor != orbitBody.scaledBody.transform); }
@@ -42,6 +45,7 @@ namespace GalacticDisk
         internal void BindSceneBody(CelestialBody body)
         {
             persistentBinding = true; orbitBody = body;
+            rotationFrame = -1;
             sceneAnchor = body != null && body.scaledBody != null ? body.scaledBody.transform : null;
             if (sceneAnchor != null) transform.position = sceneAnchor.position;
             transform.localScale = Vector3.one;
@@ -85,6 +89,7 @@ namespace GalacticDisk
                 material == null || psR == null || !psR.enabled || (camera.cullingMask & (1 << 10)) == 0 ||
                 (stableParticles != null && stableParticles.enabled)) return;
             if (!SyncScenePosition()) return;
+            SyncRotationForRendering();
             Color tint = material.color;
             if (nativeCameraColors.Count == 0) nativeBaseColor = tint;
             nativeCameraColors[camera] = tint;
@@ -200,6 +205,13 @@ namespace GalacticDisk
                 if (renderRoot.transform.localScale != scale) renderRoot.transform.localScale = scale;
             }
                 
+            UpdateDiskRotation();
+            ApplyDiskRotation();
+            // Detailed camera draws update volume matrices. Dot-only views need no proxy transforms.
+        }
+
+        private void UpdateDiskRotation()
+        {
             // Disk rotation logic uses Planetarium.GetUniversalTime() to avoid time warp time issues
             float spinDegrees = 0f;
             if (config.rotationPeriod > 0f)
@@ -228,10 +240,24 @@ namespace GalacticDisk
                     Quaternion.Euler(config.rotationX, config.rotationY + spinDegrees, config.rotationZ);
             }
             
+            diskRotation = rotation; rotationConfig = config; rotationFrame = Time.frameCount;
+        }
+
+        internal void SyncRotationForRendering()
+        {
+            if (config == null) return;
+            if (rotationFrame != Time.frameCount || rotationConfig != config) UpdateDiskRotation();
+            ApplyDiskRotation();
+        }
+
+        private void ApplyDiskRotation()
+        {
+            Quaternion rotation = diskRotation;
+            if (config.inheritBodyRotation && orbitBody != null && orbitBody.scaledBody != null)
+                rotation = orbitBody.scaledBody.transform.rotation * rotation;
             Quaternion current = transform.rotation;
             if (current.x != rotation.x || current.y != rotation.y || current.z != rotation.z || current.w != rotation.w)
                 transform.rotation = rotation;
-            // Detailed camera draws update volume matrices. Dot-only views need no proxy transforms.
         }
 
         /// <summary>

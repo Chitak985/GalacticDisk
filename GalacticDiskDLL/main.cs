@@ -334,7 +334,7 @@ namespace GalacticDisk
                 volume?.UpdateMatrices();
 
                 // Log creation
-                Debug.Log($"[GalacticDisk] Applied {config.renderMode} disk renderer to {config.planet} with {config.starCount} stars.");
+                Debug.Log($"[GalacticDisk] Applied {config.renderMode} disk renderer to {config.planet} with {config.starCount} stars; rotationPeriod={config.rotationPeriod.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}, inheritBodyRotation={config.inheritBodyRotation}.");
             }
             catch
             {

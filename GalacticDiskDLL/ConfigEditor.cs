@@ -286,6 +286,8 @@ namespace GalacticDisk
             catch (ArgumentException error) { result.errors.Add(error.Message); }
             if (c.alignRotationToOrbit && (c.rotationX != 0f || c.rotationZ != 0f))
                 result.warnings.Add("rotationX and rotationZ are ignored while alignRotationToOrbit is true.");
+            if (c.alignRotationToOrbit && c.inheritBodyRotation)
+                result.warnings.Add("inheritBodyRotation also rotates the orbit-aligned disk plane with the body.");
             if (c.usesTexture && !System.IO.File.Exists(c.texturePath))
                 result.warnings.Add("texturePath was not found; the default particle texture will be used.");
             if (c.renderMode == DiskRenderMode.Volumetric && c.usesTexture)

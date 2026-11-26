@@ -43,6 +43,7 @@ GalacticDiskRingDefinition
     rotationY = 0
     rotationZ = 0
     alignRotationToOrbit = false
+    inheritBodyRotation = false // True follows the parent body's rotation in addition to the ring's own rotation/spin.
     rotationPeriod = 0
     spinAroundDiskAxis = false
 }

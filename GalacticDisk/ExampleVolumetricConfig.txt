@@ -100,6 +100,7 @@ GalacticDiskDefinition
     rotationY = 0
     rotationZ = 0
     alignRotationToOrbit = false
+    inheritBodyRotation = false
     rotationPeriod = 0
     spinAroundDiskAxis = false
 }
