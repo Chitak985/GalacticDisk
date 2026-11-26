@@ -359,10 +359,19 @@ namespace GalacticDisk
             GUILayout.Space(10f);
             RefreshEditorDiagnostics();
             DrawEditorDiagnostics();
+            var configStyle = new GUIStyle(GUI.skin.textArea) { wordWrap = false, fixedWidth = 0f, fixedHeight = 0f };
+            Vector2 contentSize = configStyle.CalcSize(new GUIContent(configText + "\n"));
             configScroll = GUILayout.BeginScrollView(configScroll, false, true, GUILayout.Height(160f));
-            string edited = GUILayout.TextArea(configText, GUILayout.MinHeight(150f));
+            string edited = GUILayout.TextArea(configText, configStyle,
+                GUILayout.Width(Mathf.Max(Mathf.Max(80f, windowRect.width - 70f), contentSize.x)),
+                GUILayout.Height(Mathf.Max(150f, contentSize.y)));
             if (edited != configText) EditConfigText(edited);
             GUILayout.EndScrollView();
+            if (GUILayout.Button("Copy to clipboard"))
+            {
+                GUIUtility.systemCopyBuffer = configText;
+                operationMessage = "Config copied to clipboard.";
+            }
 
             GUILayout.EndScrollView();
             GUILayout.EndVertical();
