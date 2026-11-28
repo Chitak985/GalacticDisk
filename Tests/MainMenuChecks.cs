@@ -179,6 +179,7 @@ public static class MainMenuChecks
         var node = new ConfigNode("GalacticDiskDefinition"); node.AddValue("planet","NotLoaded"); node.AddValue("randomMainMenuDisk",true);
         node.AddValue("mainMenuScale",0.8f); node.AddValue("mainMenuPosition","12, -3, 7"); node.AddValue("mainMenuRotation","25, 30, 5");
         node.AddValue("renderMode",volume?"Volumetric":"Particles"); node.AddValue("starCount",1024); node.AddValue("cloudResolution",64);
+        if (volume) node.AddValue("rendererVersion",2);
         node.AddValue("minStarSize",0.5f); node.AddValue("maxStarSize",1f); node.AddValue("seed",12345);
         node.AddValue("enableDustClouds",false); node.AddValue("enableStarFormation",false); node.AddValue("objectScale",1e15f); node.AddValue("renderScale",1e10f);
         node.AddValue("rotationPeriod",1000); node.AddValue("inheritBodyRotation",true); node.AddValue("alignRotationToOrbit",true); node.AddValue("insideOpacityMultiplier",0);

@@ -8,6 +8,7 @@ namespace GalacticDisk
     internal static class GalaxyShaderAssets
     {
         private static Shader volume;
+        private static Shader volumeV2;
         private static Shader stars;
         private static Shader particles;
         private static Shader distant;
@@ -28,6 +29,11 @@ namespace GalacticDisk
         {
             if (particles == null) particles = LoadShaders(new[] { "galaxyparticles" })[0];
             return particles;
+        }
+        internal static Shader LoadVolumeV2()
+        {
+            if (volumeV2 == null) volumeV2 = LoadShaders(new[] { "galaxyvolumev2" })[0];
+            return volumeV2;
         }
 
         internal static Shader LoadDistant()

@@ -12,6 +12,18 @@ namespace GalacticDisk
         public bool isRing;
         /// <summary> Inner radius of the ring disk if it's a ring. </summary>
         public float innerRingRadius;
+
+        [Header("Galaxy volumetric renderer (1 preserves existing configs)")]
+        public int rendererVersion = 1;
+        [Min(0f)] public float diffuseDiskIntensity = 1f;
+        [Min(0f)] public float bulgeIntensity = 1f;
+        [Min(0f)] public float armIntensity = 1f;
+        [Range(0f,0.5f)] public float armVariation = 0.18f;
+        [Range(0f,1f)] public float armBranchStrength = 0.35f;
+        [Range(0f,1f)] public float dustFilamentStrength = 0.65f;
+        [Range(8f,256f)] public float dustDetailFrequency = 80f;
+        [Range(0f,2f)] public float stellarGrainStrength = 0.35f;
+        [Range(16f,2048f)] public float stellarGrainFrequency = 360f;
         
         [Header("Stars and disk (Unity units)")]
         [Min(0)] public int starCount = 140000;
@@ -133,6 +145,17 @@ namespace GalacticDisk
         /// <summary> Forcefully validate the values </summary>
         public void Validate()
         {
+            if (rendererVersion != 1 && rendererVersion != 2)
+                throw new ArgumentException("rendererVersion must be 1 or 2.");
+            diffuseDiskIntensity = Mathf.Clamp(diffuseDiskIntensity,0f,8f);
+            bulgeIntensity = Mathf.Clamp(bulgeIntensity,0f,8f);
+            armIntensity = Mathf.Clamp(armIntensity,0f,8f);
+            armVariation = Mathf.Clamp(armVariation,0f,0.5f);
+            armBranchStrength = Mathf.Clamp01(armBranchStrength);
+            dustFilamentStrength = Mathf.Clamp01(dustFilamentStrength);
+            dustDetailFrequency = Mathf.Clamp(dustDetailFrequency,8f,256f);
+            stellarGrainStrength = Mathf.Clamp(stellarGrainStrength,0f,2f);
+            stellarGrainFrequency = Mathf.Clamp(stellarGrainFrequency,16f,2048f);
             starCount = Mathf.Clamp(starCount, 0, 2000000);
             galaxyRadius = Mathf.Max(0.01f, galaxyRadius);
             if (isRing && (float.IsNaN(innerRingRadius) || float.IsInfinity(innerRingRadius) ||

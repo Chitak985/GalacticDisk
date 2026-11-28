@@ -93,6 +93,8 @@ namespace GalacticDisk
                     float laneDistance = ArmDistance(phase - sigma * 1.1f, s.armCount);
                     float laneSigma = Mathf.Max(0.01f, sigma * s.dustLaneWidth);
                     float lane = Mathf.Exp(-0.5f * laneDistance * laneDistance / (laneSigma * laneSigma));
+                    if (!s.isRing && s.rendererVersion == 2 && s.armCount > 0)
+                        lane = GalaxyStructureV2.ArmDensity(s,r,Mathf.Atan2(pz,px),sigma*1.1f,laneSigma);
                     float innerFade = Smooth(0.1f, 0.22f, r);
                     if (s.armCount == 0)
                         lane = 0.2f;
@@ -230,8 +232,15 @@ namespace GalacticDisk
             if (s.armCount > 0 && Next(random) < armBias)
             {
                 float sigma = s.armWidth * Mathf.Lerp(0.6f, 0.05f, s.armConcentration);
-                angle = s.ArmAngle(r) + random.Next(s.armCount) * Mathf.PI * 2f / s.armCount +
-                    Gaussian(random) * sigma * 0.4f + angularOffset;
+                if (s.rendererVersion == 2 && !s.isRing)
+                {
+                    int arm=random.Next(s.armCount);
+                    bool branch=Next(random)<GalaxyStructureV2.BranchWeight(s,r/s.galaxyRadius,arm)*0.35f;
+                    angle=GalaxyStructureV2.Angle(s,r,arm,branch)+Gaussian(random)*sigma*0.4f+angularOffset;
+                }
+                else
+                    angle = s.ArmAngle(r) + random.Next(s.armCount) * Mathf.PI * 2f / s.armCount +
+                        Gaussian(random) * sigma * 0.4f + angularOffset;
             }
             return new Vector3(Mathf.Cos(angle) * r,
                                Gaussian(random) * s.diskThickness * 0.055f,

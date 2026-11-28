@@ -24,6 +24,7 @@ public static class BuildGalaxyShaders
             assetBundleName = "galacticdisk-" + platform + ".bundle",
             assetNames = new[] {
                 "Assets/GalacticDisk/Shaders/GalaxyVolume.shader",
+                "Assets/GalacticDisk/Shaders/GalaxyVolumeV2.shader",
                 "Assets/GalacticDisk/Shaders/GalaxyMeshStars.shader",
                 "Assets/GalacticDisk/Shaders/GalaxyParticles.shader",
                 "Assets/GalacticDisk/Shaders/GalaxyDistant.shader",

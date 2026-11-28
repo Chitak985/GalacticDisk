@@ -54,6 +54,8 @@ namespace GalacticDisk
             var text = new StringBuilder(512);
             text.Append(VolumeConfig.Format(extents.x)).Append('|').Append(VolumeConfig.Format(extents.y)).Append('|').Append(VolumeConfig.Format(extents.z));
             foreach (FieldInfo field in densityFields) text.Append('|').Append(VolumeConfig.Format(field.GetValue(s)));
+            if (!s.isRing && s.rendererVersion == 2)
+                text.Append("|v2|").Append(VolumeConfig.Format(s.armVariation)).Append('|').Append(VolumeConfig.Format(s.armBranchStrength));
             return text.ToString();
         }
         internal static GalaxyCloudField Acquire(GalaxySettings s, Vector3 extents, bool deferTexture = false)

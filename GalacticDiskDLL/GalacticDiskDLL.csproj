@@ -88,6 +88,8 @@
     <Compile Include="GalaxyConfig.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="GalaxySettings.cs" />
+    <Compile Include="GalaxyStructureV2.cs" />
+    <Compile Include="GalaxyDetailNoise.cs" />
     <Compile Include="GalaxyCloudField.cs" />
     <Compile Include="GalaxyCloudCache.cs" />
     <Compile Include="GalaxyStarGenerator.cs" />

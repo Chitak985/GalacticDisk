@@ -76,6 +76,8 @@ public static class SceneCacheChecks
                 disks = DiskSceneCache.GetDisks(body.name); Check(disks.Length == 3,"Multiple definitions stay distinct");
                 Check(GalaxyCloudCache.PendingCount == 0 && GalaxyCloudCache.ActiveCount == 2,"All volumetric fields generated without a camera");
                 builds = GalaxyCloudCache.BuildCount;
+                Save((UnityEngine.Object)typeof(GalaxyDetailNoise).GetField("texture",BindingFlags.Static|BindingFlags.NonPublic).GetValue(null));
+                Check(GalaxyDetailNoise.Users == 1,"Version 2 shared detail is retained by the cached galaxy");
                 Check(DistantGalaxy.Users == 2,"Galaxy dot resources are shared; rings remain detailed");
                 Save((UnityEngine.Object)typeof(DistantGalaxy).GetField("quad",BindingFlags.Static|BindingFlags.NonPublic).GetValue(null));
                 Save((UnityEngine.Object)typeof(DistantGalaxy).GetField("material",BindingFlags.Static|BindingFlags.NonPublic).GetValue(null));
@@ -136,6 +138,7 @@ public static class SceneCacheChecks
                 Check(other.renderRoot == otherRenderer,"Explicit Apply leaves other cached layers intact");
                 GalacticDiskGenerator.RemoveDisk(body.name);
                 Check(DiskSceneCache.Count == 0 && GalaxyCloudCache.ActiveCount == 0 && GalaxyCloudCache.PendingCount == 0,"Remove releases every cached layer for the body");
+                Check(GalaxyDetailNoise.Users == 0,"Remove releases cached version 2 detail");
                 Check(camera.GetCommandBuffers(DiskRenderOrder.DrawEvent).Length == 0,"Remove releases camera commands");
                 UnityEngine.Object.Destroy(manager.gameObject); stage = 5; waitUntil = Time.frameCount+2; return;
             }
@@ -155,6 +158,7 @@ public static class SceneCacheChecks
         {
             var node = new ConfigNode("GalacticDiskDefinition"); node.AddValue("planet",name); node.AddValue("renderMode",volume?"Volumetric":"Particles");
             node.AddValue("starCount",512); node.AddValue("cloudResolution",64); node.AddValue("enableDustClouds",false); node.AddValue("enableStarFormation",false);
+            if (volume) { node.AddValue("rendererVersion",2); node.AddValue("enableDustClouds",true); node.AddValue("dustCloudCount",12); }
             node.AddValue("renderScale",1e5f); GameDatabase.Instance.nodes.Add(node);
         }
         var ring = new ConfigNode(RingConfig.NodeName); ring.AddValue("planet",name); ring.AddValue("renderMode","Volumetric"); ring.AddValue("particleCount",256);

@@ -294,6 +294,8 @@ namespace GalacticDisk
                 result.warnings.Add("texturePath was not found; the default particle texture will be used.");
             if (c.renderMode == DiskRenderMode.Volumetric && c.usesTexture)
                 result.warnings.Add("usesTexture and texturePath only affect Particles mode.");
+            if (!c.isRing && c.volume.rendererVersion == 2 && c.renderMode == DiskRenderMode.Particles)
+                result.warnings.Add("rendererVersion = 2 only affects Volumetric mode.");
             
             if (result.errors.Count > 0) return;
             

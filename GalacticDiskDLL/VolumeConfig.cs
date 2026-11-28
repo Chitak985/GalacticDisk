@@ -49,6 +49,7 @@ namespace GalacticDisk
                 field.SetValue(result, shared != null ? shared.GetValue(config) : field.GetValue(config.volume));
             }
             if (config.isRing) RingConfig.Configure(result);
+            if (config.isRing) result.rendererVersion = 1;
             result.Validate();
             return result;
         }

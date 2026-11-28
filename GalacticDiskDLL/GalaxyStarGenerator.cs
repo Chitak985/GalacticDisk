@@ -72,6 +72,11 @@ namespace GalacticDisk
                     {
                         int armIndex = ChooseArm(random, settings);
                         angle = armIndex * Mathf.PI * 2f / settings.armCount + settings.ArmAngle(r);
+                        if (settings.rendererVersion == 2 && !settings.isRing)
+                        {
+                            bool branch=Next(random)<GalaxyStructureV2.BranchWeight(settings,r/settings.galaxyRadius,armIndex)*0.35f;
+                            angle=GalaxyStructureV2.Angle(settings,r,armIndex,branch);
+                        }
                         float sigma = settings.armWidth * Mathf.Lerp(0.6f, 0.05f, settings.armConcentration);
                         angle += Mathf.Clamp(Gaussian(random) * sigma, -settings.armWidth, settings.armWidth);
                     }

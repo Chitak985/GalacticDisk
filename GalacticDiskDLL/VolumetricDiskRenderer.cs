@@ -29,6 +29,7 @@ namespace GalacticDisk
         private Vector3 drawExtents;
         private Texture3D boundField;
         private DistantGalaxy distant;
+        private bool ownsDetailNoise;
         public int StarCount { get; private set; }
         public bool IsReady
         {
@@ -47,6 +48,7 @@ namespace GalacticDisk
             settings = VolumeConfig.SettingsFor(config);
             distant = new DistantGalaxy(config);
             GalaxyShaderAssets.Load(out Shader volumeShader, out Shader starShader);
+            if (settings.rendererVersion == 2) volumeShader = GalaxyShaderAssets.LoadVolumeV2();
             UpdateMatrices();
             Vector3 extents = VolumeExtents();
             drawExtents = extents;
@@ -315,6 +317,7 @@ namespace GalacticDisk
             GalaxyCloudCache.Release(cloudField);
             distant?.Dispose(); distant = null;
             cloudField = null; boundField = null; volumeMaterial = null; starMaterial = null;
+            if (ownsDetailNoise) { GalaxyDetailNoise.Release(); ownsDetailNoise = false; }
         }
         
         private void OnDestroy() { DisposeResources(); }
@@ -378,6 +381,31 @@ namespace GalacticDisk
             material.SetFloat("_NoiseFrequency", settings.noiseFrequency);
             material.SetFloat("_Seed", (settings.seed % 997) * 0.17f);
             material.SetInt("_Steps", settings.volumeSteps);
+            if (settings.rendererVersion == 2)
+            {
+                material.SetFloat("_DiffuseIntensity",settings.diffuseDiskIntensity);
+                material.SetFloat("_BulgeIntensity",settings.bulgeIntensity);
+                material.SetFloat("_ArmIntensity",settings.armIntensity);
+                material.SetFloat("_ArmVariation",settings.armVariation);
+                material.SetFloat("_BranchStrength",settings.armBranchStrength);
+                material.SetFloat("_StructureSeed",settings.seed%997);
+                material.SetFloat("_FilamentStrength",settings.enableDustClouds ? settings.dustFilamentStrength : 0f);
+                material.SetFloat("_DustDetailFrequency",settings.dustDetailFrequency);
+                material.SetFloat("_GrainStrength",settings.stellarGrainStrength);
+                material.SetFloat("_GrainFrequency",settings.stellarGrainFrequency);
+                var phaseA=new Vector4[12]; var phaseB=new Vector4[12];
+                for(int arm=0;arm<12;arm++)
+                {
+                    float phase=GalaxyStructureV2.Phase(settings,arm);
+                    phaseA[arm]=new Vector4(Mathf.Sin(phase),Mathf.Cos(phase),Mathf.Sin(phase*2f),Mathf.Cos(phase*2f));
+                    phaseB[arm]=new Vector4(Mathf.Sin(phase*0.7f),Mathf.Cos(phase*0.7f),0.36f+0.09f*Mathf.Sin(phase*1.7f),arm%2==0?1f:-1f);
+                }
+                material.SetVectorArray("_ArmPhaseA",phaseA); material.SetVectorArray("_ArmPhaseB",phaseB);
+                if (settings.enableDustClouds && settings.dustFilamentStrength > 0)
+                {
+                    material.SetTexture("_DetailNoise",GalaxyDetailNoise.Acquire()); ownsDetailNoise = true;
+                }
+            }
         }
     }
 }

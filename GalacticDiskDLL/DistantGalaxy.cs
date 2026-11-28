@@ -91,6 +91,10 @@ namespace GalacticDisk
                     float arms = config.armCount > 0 ? 1-Mathf.Clamp01(config.interarmFraction) : 0;
                     Color disk = Premultiply(config.colorBulge)*bulge +
                         (Premultiply(config.colorArms)*arms + Premultiply(config.colorInterarm)*(1-arms))*(1-bulge);
+                    if (!config.isRing && config.volume.rendererVersion == 2)
+                        disk = Premultiply(config.colorBulge)*bulge*config.volume.bulgeIntensity +
+                            (Premultiply(config.colorArms)*arms*config.volume.armIntensity +
+                             Premultiply(config.colorInterarm)*(1-arms)*config.volume.diffuseDiskIntensity)*(1-bulge);
                     float emission = 1-Mathf.Exp(-config.volume.volumeIntensity*0.1f);
                     light = light*0.25f + disk*emission;
                     if (config.volume.enableStarFormation && config.volume.starFormingRegionCount > 0)
