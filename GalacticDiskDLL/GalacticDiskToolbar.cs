@@ -50,6 +50,8 @@ namespace GalacticDisk
         ///// Config fields stored as strings and booleans /////
         private string starCount = "50000";
         private bool silenceNoBodyError = false;
+        private bool randomMainMenuDisk = false, showMainMenu;
+        private string mainMenuScale = "1", mainMenuPosition = "0, 0, 0", mainMenuRotation = "0, 0, 0";
         private string galaxyRadius = "100";
         private string diskThickness = "2";
         private string insideOpacityMultiplier = "1";
@@ -283,6 +285,18 @@ namespace GalacticDisk
                 GUILayout.Label("Fade distance: rendered galaxy radii; 0 disables extra fading. Zoom controls detail.");
             }
 
+            if (!isRing)
+            {
+                showMainMenu = Foldout("Main menu",showMainMenu);
+                if (showMainMenu)
+                {
+                    randomMainMenuDisk = GUILayout.Toggle(randomMainMenuDisk," Eligible for random main-menu display");
+                    mainMenuScale = LabeledField("Menu scale",mainMenuScale);
+                    mainMenuPosition = LabeledField("Menu position XYZ",mainMenuPosition);
+                    mainMenuRotation = LabeledField("Menu rotation XYZ",mainMenuRotation);
+                    GUILayout.Label("Menu scene units; rotation uses Euler degrees. Gameplay scale and placement are separate.");
+                }
+            }
             showRotation = Foldout("Rotation", showRotation);
             if (showRotation)
             {
@@ -566,6 +580,10 @@ namespace GalacticDisk
                 "{\n" +
                 $"    planet = {planetName}\n" +
                 $"    silenceNoBodyError = {VolumeConfig.Format(cfg.silenceNoBodyError)}\n" +
+                $"    randomMainMenuDisk = {VolumeConfig.Format(cfg.randomMainMenuDisk)}\n" +
+                $"    mainMenuScale = {VolumeConfig.Format(cfg.mainMenuScale)}\n" +
+                $"    mainMenuPosition = {VolumeConfig.Format(cfg.mainMenuPosition)}\n" +
+                $"    mainMenuRotation = {VolumeConfig.Format(cfg.mainMenuRotation)}\n" +
                 $"    renderMode = {cfg.renderMode}\n" +
                 $"    starCount = {cfg.starCount.ToString(ci)}\n" +
                 $"    galaxyRadius = {cfg.galaxyRadius.ToString("R", ci)}\n" +
@@ -614,6 +632,10 @@ namespace GalacticDisk
             lastFieldFingerprint = null;
             isRing = cfg.isRing;
             silenceNoBodyError = cfg.silenceNoBodyError;
+            randomMainMenuDisk = cfg.randomMainMenuDisk;
+            mainMenuScale = VolumeConfig.Format(cfg.mainMenuScale);
+            mainMenuPosition = VolumeConfig.Format(cfg.mainMenuPosition);
+            mainMenuRotation = VolumeConfig.Format(cfg.mainMenuRotation);
             innerRingRadius = cfg.innerRingRadius.ToString("R", CultureInfo.InvariantCulture);
             renderMode = cfg.renderMode;
             volumeFields = cfg.volume;

@@ -247,7 +247,7 @@ namespace GalacticDisk
         private static string TypeDescription(Type type)
         {
             return type == typeof(bool) ? "true or false" : type == typeof(int) ? "a whole number" :
-                type == typeof(float) ? "a finite number" : type == typeof(Color) ? "three or four finite RGB(A) values" : "Particles or Volumetric";
+                type == typeof(float) ? "a finite number" : type == typeof(Vector3) ? "three comma-separated finite values" : type == typeof(Color) ? "three or four finite RGB(A) values" : "Particles or Volumetric";
         }
 
         /// <summary>
@@ -262,6 +262,8 @@ namespace GalacticDisk
                 result.errors.Add("planet: select an existing celestial body.");
             if (c.galaxyRadius <= 0f)
                 result.errors.Add(radius + " must be positive.");
+            if (!c.isRing && (float.IsNaN(c.mainMenuScale) || float.IsInfinity(c.mainMenuScale) || c.mainMenuScale <= 0))
+                result.errors.Add("mainMenuScale must be finite and positive.");
             if (c.objectScale <= 0f || c.renderScale <= 0f || float.IsInfinity(c.objectScale * c.renderScale) || c.objectScale * c.renderScale <= 0f)
                 result.errors.Add("objectScale and renderScale must be positive, and their product must be finite and nonzero.");
             if (c.starCount < 0 || c.starCount > 2000000)

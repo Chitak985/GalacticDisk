@@ -319,7 +319,7 @@ namespace GalacticDisk
                 GalacticDiskObject owner = go.GetComponent<GalacticDiskObject>() ?? go.AddComponent<GalacticDiskObject>();
                 owner.ReleaseRenderer();
                 owner.config = config;
-                owner.orbitBody = FlightGlobals.GetBodyByName(config.planet);
+                owner.orbitBody = HighLogic.LoadedScene == GameScenes.MAINMENU || FlightGlobals.Bodies == null ? null : FlightGlobals.GetBodyByName(config.planet);
                 owner.renderRoot = staged;
                 owner.volume = volume;
                 owner.stableParticles = stableParticles;

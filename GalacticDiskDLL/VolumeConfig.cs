@@ -76,6 +76,8 @@ namespace GalacticDisk
 
         public static string Format(object value)
         {
+            if (value is Vector3 vector)
+                return vector.x.ToString("R",CultureInfo.InvariantCulture)+", "+vector.y.ToString("R",CultureInfo.InvariantCulture)+", "+vector.z.ToString("R",CultureInfo.InvariantCulture);
             if (value is Color color)
                 return string.Join(", ", color.r.ToString("R", CultureInfo.InvariantCulture), color.g.ToString("R", CultureInfo.InvariantCulture),
                     color.b.ToString("R", CultureInfo.InvariantCulture), color.a.ToString("R", CultureInfo.InvariantCulture));
@@ -108,6 +110,16 @@ namespace GalacticDisk
                     float.IsNaN(parsed) || float.IsInfinity(parsed))
                     return false;
                 value = parsed;
+            }
+            else if (type == typeof(Vector3))
+            {
+                string[] parts = text.Split(',');
+                if (parts.Length != 3) return false;
+                var components = new float[3];
+                for (int i = 0; i < 3; i++)
+                    if (!float.TryParse(parts[i].Trim(),NumberStyles.Float,CultureInfo.InvariantCulture,out components[i]) ||
+                        float.IsNaN(components[i]) || float.IsInfinity(components[i])) return false;
+                value = new Vector3(components[0],components[1],components[2]);
             }
             else if (type == typeof(Color))
             {

@@ -86,7 +86,7 @@ namespace GalacticDisk
         private void PrepareNativeOpacity(Camera camera)
         {
             if (!isActiveAndEnabled || config == null || config.renderMode != DiskRenderMode.Particles ||
-                material == null || psR == null || !psR.enabled || (camera.cullingMask & (1 << 10)) == 0 ||
+                material == null || psR == null || !psR.enabled || !DiskCamera.RendersDisk(camera,transform) ||
                 (stableParticles != null && stableParticles.enabled)) return;
             if (!SyncScenePosition()) return;
             SyncRotationForRendering();

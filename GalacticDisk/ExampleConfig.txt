@@ -7,6 +7,10 @@ GalacticDiskDefinition                    // The config node for spawning a disk
 {
     planet = Eeloo                        // The parent body. If unavailable, this definition is skipped.
     silenceNoBodyError = false            // Set true to skip a missing parent silently (default false).
+    randomMainMenuDisk = false            // Eligible for random main-menu display; galaxies only. One is chosen per menu load.
+    mainMenuScale = 1                     // Menu units per galaxy unit; independent of objectScale and renderScale.
+    mainMenuPosition = 0, 0, 0            // Absolute menu-scene position X, Y, Z.
+    mainMenuRotation = 0, 0, 0            // Menu Euler rotation X, Y, Z in degrees; independent of gameplay rotation.
     insideOpacityMultiplier = 1           // Smooth fade inside the disk's thickness and rim; see Opacity.md
     atmosphereOpacityMultiplier = 1       // Daytime atmosphere multiplier, applied on top of the inside fade
     atmosphereNightOpacityMultiplier = 1  // Nighttime alternative, smoothly blended at twilight; inherits the daytime value if omitted

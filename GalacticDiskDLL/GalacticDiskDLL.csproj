@@ -105,6 +105,7 @@
     <Compile Include="DistantGalaxyBatch.cs" />
     <Compile Include="SingularityCompatibility.cs" />
     <Compile Include="DiskCamera.cs" />
+    <Compile Include="MainMenuGalaxy.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

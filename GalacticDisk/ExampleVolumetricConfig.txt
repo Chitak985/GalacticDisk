@@ -4,6 +4,10 @@ GalacticDiskDefinition
 {
     planet = Eeloo
     silenceNoBodyError = false // Set true to skip a missing parent silently (default false).
+    randomMainMenuDisk = false
+    mainMenuScale = 1
+    mainMenuPosition = 0, 0, 0
+    mainMenuRotation = 0, 0, 0
     renderMode = Volumetric
 
     insideOpacityMultiplier = 0.2

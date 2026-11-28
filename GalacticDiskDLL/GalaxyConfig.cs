@@ -11,6 +11,10 @@ namespace GalacticDisk
         public string planet;
         /// <summary> Silently skip definitions whose parent body is unavailable. </summary>
         public bool silenceNoBodyError = false;
+        public bool randomMainMenuDisk = false;
+        public float mainMenuScale = 1f;
+        public Vector3 mainMenuPosition = Vector3.zero;
+        public Vector3 mainMenuRotation = Vector3.zero;
         /// <summary> The render mode of the disk </summary>
         public DiskRenderMode renderMode = DiskRenderMode.Particles;
         /// <summary> <see cref="GalaxySettings"/> used to configure the volumetric render </summary>
@@ -100,6 +104,12 @@ namespace GalacticDisk
         // cancel it back out visually. Volumetric proxies handle culling independently.
         public float renderScale = 1f;
 
+        internal GalaxyConfig Copy()
+        {
+            var copy = (GalaxyConfig)MemberwiseClone();
+            copy.volume = volume.Snapshot(); return copy;
+        }
+
         public static GalaxyConfig FromConfigNode(ConfigNode node)
         {
             if (node.name == RingConfig.NodeName) return RingConfig.Read(node);
@@ -107,6 +117,10 @@ namespace GalacticDisk
 
             c.planet = GetString(node, "planet", c.planet);
             c.silenceNoBodyError = GetBool(node, "silenceNoBodyError", c.silenceNoBodyError);
+            c.randomMainMenuDisk = GetBool(node, "randomMainMenuDisk", c.randomMainMenuDisk);
+            c.mainMenuScale = GetFloat(node, "mainMenuScale", c.mainMenuScale);
+            c.mainMenuPosition = GetVector(node, "mainMenuPosition", c.mainMenuPosition);
+            c.mainMenuRotation = GetVector(node, "mainMenuRotation", c.mainMenuRotation);
             VolumeConfig.Read(node, c);
 
             c.starCount = GetInt(node, "starCount", c.starCount);
@@ -198,6 +212,13 @@ namespace GalacticDisk
         static string GetString(ConfigNode node, string key, string fallback)
         {
             return node.HasValue(key) ? node.GetValue(key) : fallback;
+        }
+        static Vector3 GetVector(ConfigNode node, string key, Vector3 fallback)
+        {
+            if (!node.HasValue(key)) return fallback;
+            if (VolumeConfig.TryParse(typeof(Vector3),node.GetValue(key),out object value)) return (Vector3)value;
+            Debug.LogWarning("[GalacticDisk] " + key + " must contain three finite values; using the default.");
+            return fallback;
         }
 
         static int GetInt(ConfigNode node, string key, int fallback)

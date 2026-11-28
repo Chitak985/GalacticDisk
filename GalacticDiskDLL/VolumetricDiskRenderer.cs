@@ -180,7 +180,7 @@ namespace GalacticDisk
             if (!DiskSceneCache.SyncAnchor(transform.parent)) return;
             PruneCameraBuffers();
             CameraDraws draws;
-            if ((camera.cullingMask & (1 << 10)) == 0 || !DiskVisibility.IsVisible(camera, transform.parent, drawExtents, config.objectScale))
+            if (!DiskCamera.RendersDisk(camera,transform.parent) || !DiskVisibility.IsVisible(camera, transform.parent, drawExtents, config.objectScale))
             {
                 if (cameraDraws.TryGetValue(camera, out draws)) { draws.commands.Clear(); DiskRenderOrder.Hide(camera, draws.commands); }
                 return;

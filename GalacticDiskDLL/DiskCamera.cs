@@ -4,6 +4,13 @@ namespace GalacticDisk
 {
     internal static class DiskCamera
     {
+        internal static bool RendersDisk(Camera camera, Transform root)
+        {
+            MainMenuGalaxy menu = MainMenuGalaxy.Active;
+            if (menu != null && menu.DiskRoot != null && menu.DiskRoot.transform == root)
+                return HighLogic.LoadedScene == GameScenes.MAINMENU && camera == menu.TargetCamera;
+            return (camera.cullingMask & (1 << 10)) != 0;
+        }
         // Cubemap faces and custom view matrices need not match the Transform rotation.
         internal static Matrix4x4 Rotation(Camera camera)
         {

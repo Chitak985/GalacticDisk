@@ -6,11 +6,14 @@ using UnityEngine;
 
 public class KSPAddon : Attribute
 {
-    public enum Startup { SpaceCentre }
+    public enum Startup { SpaceCentre, MainMenu }
     public KSPAddon(Startup startup, bool once) { }
 }
 public enum GameScenes { MAINMENU, SPACECENTER, FLIGHT, TRACKSTATION }
 public static class HighLogic { public static GameScenes LoadedScene = GameScenes.SPACECENTER; }
+public class MainMenuEnvLogic : MonoBehaviour { public Camera landscapeCamera; }
+public class GalaxyCubeControl : MonoBehaviour { }
+public class GalaxyCameraControl : MonoBehaviour { }
 public static class KSPUtil { public static string ApplicationRootPath; }
 public static class Planetarium { public static double time; public static Quaternion Rotation = Quaternion.identity; public static double GetUniversalTime() { return time; } }
 public class Orbit { public Vector3 normal = Vector3.forward; public Vector3 GetOrbitNormal() { return normal; } }

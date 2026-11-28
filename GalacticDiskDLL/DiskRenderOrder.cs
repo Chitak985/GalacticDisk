@@ -112,7 +112,7 @@ namespace GalacticDisk
             {
                 if (!entry.visible || entry.renderer == null || entry.root == null ||
                     !entry.renderer.isActiveAndEnabled ||
-                    (camera.cullingMask & (1 << 10)) == 0)
+                    !DiskCamera.RendersDisk(camera,entry.root))
                     continue;
                 Vector3 position = entry.root.position, eye = camera.transform.position;
                 // Cast before subtraction and squaring because float distances will likely overflow
@@ -168,7 +168,7 @@ namespace GalacticDisk
             state.nextReport = Time.realtimeSinceStartup+5;
             CameraStats s = state.stats, old = state.reported;
             if (!state.hasReport || state.reportedMap != map || s.dotDisks != old.dotDisks || s.detailedDisks != old.detailedDisks || s.dotBatches != old.dotBatches)
-                Debug.Log("[GalacticDisk] Camera '"+camera.name+"' ("+(map ? "map" : "flight/space center")+"): "+s.detailedDisks+
+                Debug.Log("[GalacticDisk] Camera '"+camera.name+"' ("+(map ? "map" : HighLogic.LoadedScene == GameScenes.MAINMENU ? "main menu" : "flight/space center")+"): "+s.detailedDisks+
                     " detailed disks, "+s.dotDisks+" dots in "+s.dotBatches+" batches; "+s.detailDraws+" detailed draws. Dot-only disks submit no star or volume draws.");
             state.hasReport = true; state.reportedMap = map; state.reported = s;
         }

@@ -78,7 +78,7 @@ namespace GalacticDisk
             foreach (var entry in cameras) if (entry.Key == null) stale.Add(entry.Key);
             foreach (Camera dead in stale) { DiskRenderOrder.Remove(dead, cameras[dead].commands); cameras[dead].commands.Release(); cameras.Remove(dead); }
             CameraDraws draws;
-            if ((camera.cullingMask & (1 << 10)) == 0 || !DiskVisibility.IsVisible(camera, transform.parent, drawExtents, config.objectScale))
+            if (!DiskCamera.RendersDisk(camera,transform.parent) || !DiskVisibility.IsVisible(camera, transform.parent, drawExtents, config.objectScale))
             {
                 if (cameras.TryGetValue(camera, out draws)) { draws.commands.Clear(); DiskRenderOrder.Hide(camera, draws.commands); }
                 return;
